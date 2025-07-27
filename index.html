@@ -1,141 +1,151 @@
-<!DOCTYPE html>
-<html>
+   <!DOCTYPE html>
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <title>WebdEX Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #0f172a;
-      color: #f8fafc;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background-color: #1e293b;
-      padding: 20px;
-      text-align: center;
-      font-size: 24px;
-      font-weight: bold;
-      color: #22d3ee;
-    }
-    .container {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-      padding: 20px;
-    }
-    .card {
-      background-color: #1e293b;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    .btn {
-      padding: 10px 15px;
-      background-color: #0ea5e9;
-      border: none;
-      color: white;
-      cursor: pointer;
-      border-radius: 8px;
-      margin-top: 10px;
-    }
-    input {
-      padding: 8px;
-      border-radius: 6px;
-      border: none;
-      width: 100%;
-      margin-top: 10px;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard WEbdEX</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6f8; color: #333; }
+  h1 { margin-bottom: 20px; }
+  .balance-box { background: white; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 6px #ccc; }
+  #lastUpdate { font-size: 0.9em; color: #555; }
+  button { padding: 10px 15px; border:none; background: #2b8a3e; color: white; border-radius: 4px; cursor:pointer; }
+  button:disabled { background: #888; }
+</style>
 </head>
 <body>
-  <header>WebdEX Manager Dashboard</header>
-  <div class="container">
-    <div class="card">
-      <h3>Conexão</h3>
-      <button class="btn" onclick="connectWallet()">Conectar MetaMask</button>
-      <p id="walletAddress">Carteira: não conectada</p>
-    </div>
-    <div class="card">
-      <h3>Saldo de Gás</h3>
-      <button class="btn" onclick="getGasBalance()">Ver Saldo</button>
-      <p id="gasBalance">-</p>
-    </div>
-    <div class="card">
-      <h3>Adicionar Gás</h3>
-      <input type="number" id="addGasAmount" placeholder="Quantidade em MATIC" />
-      <button class="btn" onclick="addGas()">Adicionar</button>
-    </div>
-    <div class="card">
-      <h3>Remover Gás</h3>
-      <input type="number" id="removeGasAmount" placeholder="Quantidade em MATIC" />
-      <button class="btn" onclick="removeGas()">Remover</button>
-    </div>
-  </div>
+
+<h1>Dashboard WEbdEX</h1>
+
+<div class="balance-box">
+  <strong>Saldo Gás (MATIC):</strong> <span id="gasBalance">-</span>
+</div>
+
+<div class="balance-box">
+  <strong>Saldo WebdEX:</strong> <span id="webdexBalance">-</span>
+</div>
+
+<div class="balance-box">
+  <strong>Liquidez Total:</strong> <span id="liquidityBalance">-</span>
+</div>
+
+<div class="balance-box">
+  <strong>Balanço Diário / Semanal / Mensal:</strong><br />
+  <ul>
+    <li>Diário: <span id="balanceDaily">-</span></li>
+    <li>Semanal: <span id="balanceWeekly">-</span></li>
+    <li>Mensal: <span id="balanceMonthly">-</span></li>
+  </ul>
+</div>
+
+<div id="lastUpdate">Última atualização: -</div>
+
+<button id="btnManualUpdate">Atualizar Agora</button>
 
 <script>
-const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-const managerABI = [ /* COLE AQUI SUA ABI COMPLETA */ ];
+// Endereço do contrato e ABI (substituir pelos seus reais)
+const WEbdEXManagerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+const WEbdEXManagerABI = [
+  // Coloque aqui o ABI completo do contrato com as funções necessárias
+  "function getGasBalance(address user) view returns (uint256)",
+  "function getWebdexBalance(address user) view returns (uint256)",
+  "function getLiquidityBalance(address user) view returns (uint256)",
+  "function getBalanceDaily(address user) view returns (int256)",
+  "function getBalanceWeekly(address user) view returns (int256)",
+  "function getBalanceMonthly(address user) view returns (int256)"
+];
 
-let web3;
-let account;
+let provider;
+let signer;
 let contract;
+let userAddress;
 
 async function connectWallet() {
   if (window.ethereum) {
-    web3 = new Web3(window.ethereum);
-    await ethereum.request({ method: 'eth_requestAccounts' });
-    const accounts = await web3.eth.getAccounts();
-    account = accounts[0];
-    document.getElementById("walletAddress").innerText = "Carteira: " + account;
-    contract = new web3.eth.Contract(managerABI, managerAddress);
+    try {
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      signer = provider.getSigner();
+      userAddress = await signer.getAddress();
+      contract = new ethers.Contract(WEbdEXManagerAddress, WEbdEXManagerABI, provider);
+      updateAllBalances();
+      setInterval(updateAllBalances, 15000); // Atualiza a cada 15s
+      setInterval(checkIf8PM, 60000); // Checa a cada 1 min se é 20h para atualizar gráficos
+    } catch (err) {
+      alert("Erro ao conectar carteira: " + err.message);
+    }
   } else {
-    alert("MetaMask não detectado!");
+    alert("Por favor instale MetaMask!");
   }
 }
 
-async function getGasBalance() {
-  if (!contract) return alert("Conecte a carteira primeiro.");
+async function updateAllBalances() {
+  if (!contract || !userAddress) return;
   try {
-    const balance = await contract.methods.balanceGas(account).call();
-    document.getElementById("gasBalance").innerText = web3.utils.fromWei(balance) + " MATIC";
-  } catch (e) {
-    console.error(e);
-    alert("Erro ao buscar saldo de gás.");
+    const gasRaw = await provider.getBalance(userAddress);
+    const gasBalance = ethers.utils.formatEther(gasRaw);
+    document.getElementById("gasBalance").textContent = Number(gasBalance).toFixed(4) + " MATIC";
+
+    const webdexRaw = await contract.getWebdexBalance(userAddress);
+    const webdexBalance = ethers.utils.formatEther(webdexRaw);
+    document.getElementById("webdexBalance").textContent = Number(webdexBalance).toFixed(4) + " WebdEX";
+
+    const liquidityRaw = await contract.getLiquidityBalance(userAddress);
+    const liquidityBalance = ethers.utils.formatEther(liquidityRaw);
+    document.getElementById("liquidityBalance").textContent = Number(liquidityBalance).toFixed(4);
+
+    // Balanços (podem ser negativos, por isso int256)
+    const dailyRaw = await contract.getBalanceDaily(userAddress);
+    const weeklyRaw = await contract.getBalanceWeekly(userAddress);
+    const monthlyRaw = await contract.getBalanceMonthly(userAddress);
+
+    document.getElementById("balanceDaily").textContent = formatBalance(dailyRaw);
+    document.getElementById("balanceWeekly").textContent = formatBalance(weeklyRaw);
+    document.getElementById("balanceMonthly").textContent = formatBalance(monthlyRaw);
+
+    updateLastUpdateTime();
+  } catch (err) {
+    console.error("Erro ao atualizar saldos:", err);
   }
 }
 
-async function addGas() {
-  const amount = document.getElementById("addGasAmount").value;
-  if (!amount) return alert("Informe a quantidade.");
+function formatBalance(raw) {
+  // raw pode ser BigNumber ou Number, converter para número com 2 casas
   try {
-    await web3.eth.sendTransaction({
-      from: account,
-      to: managerAddress,
-      value: web3.utils.toWei(amount, "ether")
-    });
-    alert("Gás adicionado com sucesso.");
-  } catch (e) {
-    console.error(e);
-    alert("Erro ao adicionar gás.");
+    const num = Number(ethers.utils.formatEther(raw));
+    return (num >= 0 ? "+" : "") + num.toFixed(2);
+  } catch {
+    return "-";
   }
 }
 
-async function removeGas() {
-  const amount = document.getElementById("removeGasAmount").value;
-  if (!contract || !amount) return;
-  try {
-    await contract.methods.removeGas(web3.utils.toWei(amount, "ether")).send({ from: account });
-    alert("Gás removido.");
-  } catch (e) {
-    console.error(e);
-    alert("Erro ao remover gás.");
+function updateLastUpdateTime() {
+  const now = new Date();
+  document.getElementById("lastUpdate").textContent = "Última atualização: " + now.toLocaleString();
+}
+
+function checkIf8PM() {
+  const now = new Date();
+  if (now.getHours() === 20 && now.getMinutes() === 0) {
+    updateBalanceCharts();
   }
 }
+
+// Função mock para atualizar gráficos (você pode implementar com biblioteca Chart.js ou outra)
+function updateBalanceCharts() {
+  console.log("Atualizando gráficos às 20h...");
+  // TODO: implemente gráficos reais
+}
+
+// Botão atualização manual
+document.getElementById("btnManualUpdate").addEventListener("click", () => {
+  updateAllBalances();
+});
+
+// Conecta ao abrir página
+connectWallet();
+
 </script>
 </body>
 </html>
-
-  
