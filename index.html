@@ -1,368 +1,141 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
-<meta charset="UTF-8" />
-<title>Dashboard WEbdEXFactoryV4 Completo</title>
-<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-<style>
-  /* Reset básico */
-  * {
-    box-sizing: border-box;
-  }
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #1e3c72, #2a5298);
-    margin: 0;
-    padding: 20px;
-    color: #eee;
-    min-height: 100vh;
-  }
-  #container {
-    max-width: 900px;
-    margin: auto;
-    background: #121826cc;
-    padding: 30px 40px;
-    border-radius: 12px;
-    box-shadow: 0 0 20px rgba(255,255,255,0.1);
-  }
-  h1 {
-    text-align: center;
-    color: #fff;
-    margin-bottom: 30px;
-    letter-spacing: 1.3px;
-  }
-  #btnConectar {
-    display: block;
-    width: 100%;
-    padding: 15px 0;
-    font-size: 1.1em;
-    font-weight: 600;
-    color: #121826;
-    background: #4caf50;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin-bottom: 25px;
-  }
-  #btnConectar:hover:not(:disabled) {
-    background: #45a049;
-  }
-  #btnConectar:disabled {
-    background: #888;
-    cursor: default;
-  }
-  #status {
-    text-align: center;
-    margin-bottom: 25px;
-    font-weight: 600;
-    color: #90ee90;
-  }
-  #saldos {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 20px;
-  }
-  .saldo-item {
-    background: #223044;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 8px rgba(255,255,255,0.1);
-    text-align: center;
-    font-size: 1.25em;
-    font-weight: 700;
-    border-left: 6px solid;
-    color: #fff;
-  }
-  /* Diferentes cores para cada saldo */
-  #saldoLP {
-    border-color: #ff9800; /* laranja */
-  }
-  #saldoPOLY {
-    border-color: #00bcd4; /* azul claro */
-  }
-  #saldoWebdex {
-    border-color: #4caf50; /* verde */
-  }
-  #saldoGas {
-    border-color: #f44336; /* vermelho */
-  }
-  #saldoGasAdicionado {
-    border-color: #9c27b0; /* roxo */
-  }
-  #saldoLiquidez {
-    border-color: #2196f3; /* azul */
-  }
-
-  .acoes {
-    margin-top: 35px;
-    text-align: center;
-  }
-  .acoes button {
-    background: #2196f3;
-    border: none;
-    padding: 14px 30px;
-    margin: 0 10px;
-    font-size: 1.1em;
-    font-weight: 600;
-    color: #fff;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    min-width: 160px;
-  }
-  .acoes button:hover {
-    background: #1976d2;
-  }
-
-  /* Responsividade */
-  @media (max-width: 600px) {
-    .acoes button {
-      display: block;
-      width: 80%;
-      margin: 12px auto;
+  <meta charset="UTF-8" />
+  <title>WebdEX Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 0;
     }
-    #saldos {
-      grid-template-columns: 1fr;
+    header {
+      background-color: #1e293b;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #22d3ee;
     }
-  }
-</style>
+    .container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      background-color: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .btn {
+      padding: 10px 15px;
+      background-color: #0ea5e9;
+      border: none;
+      color: white;
+      cursor: pointer;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    input {
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      width: 100%;
+      margin-top: 10px;
+    }
+  </style>
 </head>
 <body>
-
-<div id="container">
-  <h1>Dashboard WEbdEXFactoryV4 Completo</h1>
-  <button id="btnConectar">Conectar MetaMask</button>
-  <div id="status"></div>
-
-  <div id="saldos">
-    <div class="saldo-item" id="saldoLP">Saldo Token LP: ---</div>
-    <div class="saldo-item" id="saldoPOLY">Saldo POLY (MATIC): ---</div>
-    <div class="saldo-item" id="saldoWebdex">Saldo Webdex: ---</div>
-    <div class="saldo-item" id="saldoGas">Saldo Gás: ---</div>
-    <div class="saldo-item" id="saldoGasAdicionado">Saldo Gás Adicionado: ---</div>
-    <div class="saldo-item" id="saldoLiquidez">Liquidez: ---</div>
+  <header>WebdEX Manager Dashboard</header>
+  <div class="container">
+    <div class="card">
+      <h3>Conexão</h3>
+      <button class="btn" onclick="connectWallet()">Conectar MetaMask</button>
+      <p id="walletAddress">Carteira: não conectada</p>
+    </div>
+    <div class="card">
+      <h3>Saldo de Gás</h3>
+      <button class="btn" onclick="getGasBalance()">Ver Saldo</button>
+      <p id="gasBalance">-</p>
+    </div>
+    <div class="card">
+      <h3>Adicionar Gás</h3>
+      <input type="number" id="addGasAmount" placeholder="Quantidade em MATIC" />
+      <button class="btn" onclick="addGas()">Adicionar</button>
+    </div>
+    <div class="card">
+      <h3>Remover Gás</h3>
+      <input type="number" id="removeGasAmount" placeholder="Quantidade em MATIC" />
+      <button class="btn" onclick="removeGas()">Remover</button>
+    </div>
   </div>
-
-  <div class="acoes">
-    <button id="btnRebalancear">Rebalancear Cotação</button>
-    <button id="btnPausar">Pausar Operações</button>
-    <button id="btnCriarSubconta">Criar Subconta</button>
-  </div>
-</div>
 
 <script>
-  let web3;
-  let userAddress;
-  let contractLP;
-  let contractFactory;
+const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+const managerABI = [ /* COLE AQUI SUA ABI COMPLETA */ ];
 
-  // Endereços com checksum corretos para rede Polygon
-  const tokenLPAddressRaw = '0x72F95e2E7b81A6ede5207C7Bd14881c84555C411';
-  const webdexFactoryAddressRaw = '0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0b';
+let web3;
+let account;
+let contract;
 
-  // ABI mínimo ERC20 para o token LP
-  const erc20ABI = [
-    {
-      constant: true,
-      inputs: [{ name: "_owner", type: "address" }],
-      name: "balanceOf",
-      outputs: [{ name: "balance", type: "uint256" }],
-      type: "function",
-    },
-    {
-      constant: true,
-      inputs: [],
-      name: "decimals",
-      outputs: [{ name: "", type: "uint8" }],
-      type: "function",
-    },
-    {
-      constant: true,
-      inputs: [],
-      name: "symbol",
-      outputs: [{ name: "", type: "string" }],
-      type: "function",
-    }
-  ];
-
-  // ABI parcial do WEbdEXFactoryV4
-  const factoryABI = [
-    {
-      "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
-      "name": "getWebdexBalance",
-      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
-      "name": "getGasBalance",
-      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
-      "name": "getAddedGasBalance",
-      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
-      "name": "getLiquidityBalance",
-      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-      "stateMutability": "view",
-      "type": "function"
-    }
-  ];
-
-  // Função principal para conectar MetaMask e iniciar contratos
-  async function conectarMetaMask() {
-    if (typeof window.ethereum === 'undefined') {
-      document.getElementById('status').textContent = 'MetaMask não detectada. Por favor, instale e ative.';
-      return;
-    }
-
-    try {
-      // Solicitar conexão e contas
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      userAddress = accounts[0];
-      document.getElementById('status').textContent = `Carteira conectada: ${userAddress}`;
-
-      // Inicializar web3
-      web3 = new Web3(window.ethereum);
-
-      // Validar rede Polygon (ID 137 para mainnet)
-      const networkId = await web3.eth.net.getId();
-      if (networkId !== 137) {
-        document.getElementById('status').textContent = `Rede incorreta. Conecte a MetaMask à rede Polygon Mainnet. (Network ID: ${networkId})`;
-        return;
-      }
-
-      // Aplicar checksum nos endereços
-      const tokenLPAddress = web3.utils.toChecksumAddress(tokenLPAddressRaw);
-      const webdexFactoryAddress = web3.utils.toChecksumAddress(webdexFactoryAddressRaw);
-
-      // Instanciar contratos
-      contractLP = new web3.eth.Contract(erc20ABI, tokenLPAddress);
-      contractFactory = new web3.eth.Contract(factoryABI, webdexFactoryAddress);
-
-      // Atualizar UI
-      document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
-      document.getElementById('btnConectar').disabled = true;
-
-      // Atualizar todos saldos
-      await atualizarTodosSaldos();
-
-      // Ouvir troca de conta na MetaMask
-      window.ethereum.on('accountsChanged', async (accounts) => {
-        userAddress = accounts[0];
-        document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
-        document.getElementById('status').textContent = `Conta alterada: ${userAddress}`;
-        await atualizarTodosSaldos();
-      });
-
-      // Ouvir troca de rede na MetaMask
-      window.ethereum.on('chainChanged', (chainId) => {
-        window.location.reload(); // recarrega página para atualizar rede
-      });
-
-    } catch (error) {
-      console.error('Erro ao conectar MetaMask:', error);
-      document.getElementById('status').textContent = 'Erro ao conectar MetaMask: ' + error.message;
-    }
+async function connectWallet() {
+  if (window.ethereum) {
+    web3 = new Web3(window.ethereum);
+    await ethereum.request({ method: 'eth_requestAccounts' });
+    const accounts = await web3.eth.getAccounts();
+    account = accounts[0];
+    document.getElementById("walletAddress").innerText = "Carteira: " + account;
+    contract = new web3.eth.Contract(managerABI, managerAddress);
+  } else {
+    alert("MetaMask não detectado!");
   }
+}
 
-  // Atualizações individuais dos saldos
-  async function atualizarSaldoLP() {
-    try {
-      const balance = await contractLP.methods.balanceOf(userAddress).call();
-      const decimals = await contractLP.methods.decimals().call();
-      const symbol = await contractLP.methods.symbol().call();
-      const formatted = balance / (10 ** decimals);
-      document.getElementById('saldoLP').textContent = `Saldo Token LP (${symbol}): ${formatted.toLocaleString('pt-BR')}`;
-    } catch (error) {
-      console.error('Erro ao obter saldo LP:', error);
-      document.getElementById('saldoLP').textContent = 'Erro ao obter saldo Token LP.';
-    }
+async function getGasBalance() {
+  if (!contract) return alert("Conecte a carteira primeiro.");
+  try {
+    const balance = await contract.methods.balanceGas(account).call();
+    document.getElementById("gasBalance").innerText = web3.utils.fromWei(balance) + " MATIC";
+  } catch (e) {
+    console.error(e);
+    alert("Erro ao buscar saldo de gás.");
   }
+}
 
-  async function atualizarSaldoPOLY() {
-    try {
-      const balance = await web3.eth.getBalance(userAddress);
-      const formatted = web3.utils.fromWei(balance, 'ether');
-      document.getElementById('saldoPOLY').textContent = `Saldo POLY (MATIC): ${parseFloat(formatted).toLocaleString('pt-BR')} MATIC`;
-    } catch (error) {
-      console.error('Erro ao obter saldo POLY:', error);
-      document.getElementById('saldoPOLY').textContent = 'Erro ao obter saldo POLY.';
-    }
+async function addGas() {
+  const amount = document.getElementById("addGasAmount").value;
+  if (!amount) return alert("Informe a quantidade.");
+  try {
+    await web3.eth.sendTransaction({
+      from: account,
+      to: managerAddress,
+      value: web3.utils.toWei(amount, "ether")
+    });
+    alert("Gás adicionado com sucesso.");
+  } catch (e) {
+    console.error(e);
+    alert("Erro ao adicionar gás.");
   }
+}
 
-  async function atualizarSaldoWebdex() {
-    try {
-      const saldo = await contractFactory.methods.getWebdexBalance(userAddress).call();
-      const saldoFormatado = web3.utils.fromWei(saldo, 'ether');
-      document.getElementById('saldoWebdex').textContent = `Saldo Webdex: ${parseFloat(saldoFormatado).toLocaleString('pt-BR')}`;
-    } catch (error) {
-      console.error('Erro ao obter saldo Webdex:', error);
-      document.getElementById('saldoWebdex').textContent = 'Erro ao obter saldo Webdex.';
-    }
+async function removeGas() {
+  const amount = document.getElementById("removeGasAmount").value;
+  if (!contract || !amount) return;
+  try {
+    await contract.methods.removeGas(web3.utils.toWei(amount, "ether")).send({ from: account });
+    alert("Gás removido.");
+  } catch (e) {
+    console.error(e);
+    alert("Erro ao remover gás.");
   }
-
-  async function atualizarSaldoGas() {
-    try {
-      const saldo = await contractFactory.methods.getGasBalance(userAddress).call();
-      const saldoFormatado = web3.utils.fromWei(saldo, 'ether');
-      document.getElementById('saldoGas').textContent = `Saldo Gás: ${parseFloat(saldoFormatado).toLocaleString('pt-BR')}`;
-    } catch (error) {
-      console.error('Erro ao obter saldo Gás:', error);
-      document.getElementById('saldoGas').textContent = 'Erro ao obter saldo Gás.';
-    }
-  }
-
-  async function atualizarSaldoGasAdicionado() {
-    try {
-      const saldo = await contractFactory.methods.getAddedGasBalance(userAddress).call();
-      const saldoFormatado = web3.utils.fromWei(saldo, 'ether');
-      document.getElementById('saldoGasAdicionado').textContent = `Saldo Gás Adicionado: ${parseFloat(saldoFormatado).toLocaleString('pt-BR')}`;
-    } catch (error) {
-      console.error('Erro ao obter saldo Gás Adicionado:', error);
-      document.getElementById('saldoGasAdicionado').textContent = 'Erro ao obter saldo Gás Adicionado.';
-    }
-  }
-
-  async function atualizarLiquidez() {
-    try {
-      const saldo = await contractFactory.methods.getLiquidityBalance(userAddress).call();
-      const saldoFormatado = web3.utils.fromWei(saldo, 'ether');
-      document.getElementById('saldoLiquidez').textContent = `Liquidez: ${parseFloat(saldoFormatado).toLocaleString('pt-BR')}`;
-    } catch (error) {
-      console.error('Erro ao obter liquidez:', error);
-      document.getElementById('saldoLiquidez').textContent = 'Erro ao obter liquidez.';
-    }
-  }
-
-  async function atualizarTodosSaldos() {
-    await Promise.all([
-      atualizarSaldoLP(),
-      atualizarSaldoPOLY(),
-      atualizarSaldoWebdex(),
-      atualizarSaldoGas(),
-      atualizarSaldoGasAdicionado(),
-      atualizarLiquidez()
-    ]);
-  }
-
-  // Botões com alertas para funções não implementadas ainda
-  document.getElementById('btnRebalancear').onclick = () => alert('Função Rebalancear Cotação - implementar');
-  document.getElementById('btnPausar').onclick = () => alert('Função Pausar Operações - implementar');
-  document.getElementById('btnCriarSubconta').onclick = () => alert('Função Criar Subconta - implementar');
-
-  // Conectar MetaMask ao clicar no botão
-  document.getElementById('btnConectar').onclick = conectarMetaMask;
+}
 </script>
-
 </body>
 </html>
+
+  
