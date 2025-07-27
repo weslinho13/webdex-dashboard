@@ -1,43 +1,145 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>MetaMask Mobile Connect Test</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; background: #fafafa; }
-  #connectBtn { font-size: 18px; padding: 12px 20px; cursor: pointer; }
-  #status { margin-top: 15px; font-weight: bold; color: #333; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard WEbdEX Manager</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f7f7f7;
+      color: #222;
+    }
+    #connectButton {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .balance-box {
+      background: white;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+    }
+    .balance-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .balance-value {
+      font-size: 24px;
+      color: #2563eb;
+    }
+  </style>
 </head>
 <body>
+  <button id="connectButton">Conectar MetaMask</button>
 
-<h2>Teste conexão MetaMask Mobile Browser</h2>
-<button id="connectBtn">Conectar MetaMask</button>
-<div id="status">Status: Não conectado</div>
+  <div id="accountDisplay"></div>
+
+  <div class="balance-box">
+    <div class="balance-title">Liquidez</div>
+    <div id="liquidez" class="balance-value">--</div>
+  </div>
+
+  <div class="balance-box">
+    <div class="balance-title">Gás</div>
+    <div id="gas" class="balance-value">--</div>
+  </div>
+
+  <div class="balance-box">
+    <div class="balance-title">Pass (WebdEX)</div>
+    <div id="pass" class="balance-value">--</div>
+  </div>
+
+  <div class="balance-box">
+    <div class="balance-title">Ganhos Diários</div>
+    <div id="ganhosDiarios" class="balance-value">--</div>
+  </div>
+
+  <div class="balance-box">
+    <div class="balance-title">Ganhos Semanais</div>
+    <div id="ganhosSemanais" class="balance-value">--</div>
+  </div>
+
+  <div class="balance-box">
+    <div class="balance-title">Ganhos Mensais</div>
+    <div id="ganhosMensais" class="balance-value">--</div>
+  </div>
 
 <script>
-  const connectBtn = document.getElementById('connectBtn');
-  const status = document.getElementById('status');
+  const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
 
-  connectBtn.addEventListener('click', async () => {
-    if (typeof window.ethereum === 'undefined') {
-      status.textContent = 'MetaMask não detectada. Instale ou abra no app MetaMask.';
-      return;
+  // ABI simplificada só com as funções para pegar os saldos
+  // Se precisar de mais funções depois, a gente adiciona
+  const contractABI = [
+    "function getLiquidity() view returns (uint256)",
+    "function getGas() view returns (uint256)",
+    "function getPass() view returns (uint256)",
+    "function getGanhosDiarios() view returns (uint256)",
+    "function getGanhosSemanais() view returns (uint256)",
+    "function getGanhosMensais() view returns (uint256)"
+  ];
+
+  let provider;
+  let signer;
+  let contract;
+
+  const connectButton = document.getElementById("connectButton");
+  const accountDisplay = document.getElementById("accountDisplay");
+
+  connectButton.onclick = async () => {
+    if (window.ethereum) {
+      try {
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        contract = new ethers.Contract(contractAddress, contractABI, signer);
+
+        const account = await signer.getAddress();
+        accountDisplay.innerText = `Conectado: ${account}`;
+
+        // Carregar os saldos iniciais
+        await updateBalances();
+
+        // Você pode adicionar um listener para mudanças na conta ou na rede se quiser
+      } catch (error) {
+        alert("Erro ao conectar: " + error.message);
+      }
+    } else {
+      alert("MetaMask não encontrada. Instale a extensão ou use o app MetaMask.");
     }
+  };
 
+  async function updateBalances() {
     try {
-      // Peça permissão para conectar à carteira MetaMask
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      const account = accounts[0];
-      status.textContent = `Conectado: ${account.substring(0,6)}...${account.slice(-4)}`;
-      connectBtn.style.display = 'none';
+      const liquidez = await contract.getLiquidity();
+      const gas = await contract.getGas();
+      const pass = await contract.getPass();
+      const ganhosDiarios = await contract.getGanhosDiarios();
+      const ganhosSemanais = await contract.getGanhosSemanais();
+      const ganhosMensais = await contract.getGanhosMensais();
 
-      // Você pode colocar aqui a lógica para carregar dados do contrato
-    } catch (err) {
-      status.textContent = 'Erro na conexão: ' + (err.message || err);
+      // Supondo que os valores são uint256 em wei (18 decimais)
+      document.getElementById("liquidez").innerText = ethers.utils.formatUnits(liquidez, 18);
+      document.getElementById("gas").innerText = ethers.utils.formatUnits(gas, 18);
+      document.getElementById("pass").innerText = ethers.utils.formatUnits(pass, 18);
+      document.getElementById("ganhosDiarios").innerText = ethers.utils.formatUnits(ganhosDiarios, 18);
+      document.getElementById("ganhosSemanais").innerText = ethers.utils.formatUnits(ganhosSemanais, 18);
+      document.getElementById("ganhosMensais").innerText = ethers.utils.formatUnits(ganhosMensais, 18);
+
+    } catch (error) {
+      console.error("Erro ao buscar saldos:", error);
+      alert("Erro ao buscar saldos. Veja console.");
     }
-  });
+  }
 </script>
 
 </body>
