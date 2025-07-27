@@ -1,19 +1,131 @@
-
-         <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
 <title>Dashboard WEbdEXFactoryV4 Completo</title>
 <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
-  #container { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-  h1 { color: #222; }
-  button { padding: 10px 20px; font-size: 1em; cursor: pointer; margin: 10px 0; }
-  #status { margin-bottom: 15px; color: green; }
-  .saldo-item { margin: 10px 0; font-size: 1.2em; }
-  .acoes { margin-top: 25px; }
-  .acoes button { margin-right: 10px; }
+  /* Reset básico */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    margin: 0;
+    padding: 20px;
+    color: #eee;
+    min-height: 100vh;
+  }
+  #container {
+    max-width: 900px;
+    margin: auto;
+    background: #121826cc;
+    padding: 30px 40px;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(255,255,255,0.1);
+  }
+  h1 {
+    text-align: center;
+    color: #fff;
+    margin-bottom: 30px;
+    letter-spacing: 1.3px;
+  }
+  #btnConectar {
+    display: block;
+    width: 100%;
+    padding: 15px 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #121826;
+    background: #4caf50;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-bottom: 25px;
+  }
+  #btnConectar:hover:not(:disabled) {
+    background: #45a049;
+  }
+  #btnConectar:disabled {
+    background: #888;
+    cursor: default;
+  }
+  #status {
+    text-align: center;
+    margin-bottom: 25px;
+    font-weight: 600;
+    color: #90ee90;
+  }
+  #saldos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+  .saldo-item {
+    background: #223044;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 8px rgba(255,255,255,0.1);
+    text-align: center;
+    font-size: 1.25em;
+    font-weight: 700;
+    border-left: 6px solid;
+    color: #fff;
+  }
+  /* Diferentes cores para cada saldo */
+  #saldoLP {
+    border-color: #ff9800; /* laranja */
+  }
+  #saldoPOLY {
+    border-color: #00bcd4; /* azul claro */
+  }
+  #saldoWebdex {
+    border-color: #4caf50; /* verde */
+  }
+  #saldoGas {
+    border-color: #f44336; /* vermelho */
+  }
+  #saldoGasAdicionado {
+    border-color: #9c27b0; /* roxo */
+  }
+  #saldoLiquidez {
+    border-color: #2196f3; /* azul */
+  }
+
+  .acoes {
+    margin-top: 35px;
+    text-align: center;
+  }
+  .acoes button {
+    background: #2196f3;
+    border: none;
+    padding: 14px 30px;
+    margin: 0 10px;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    min-width: 160px;
+  }
+  .acoes button:hover {
+    background: #1976d2;
+  }
+
+  /* Responsividade */
+  @media (max-width: 600px) {
+    .acoes button {
+      display: block;
+      width: 80%;
+      margin: 12px auto;
+    }
+    #saldos {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 </head>
 <body>
@@ -42,7 +154,7 @@
 <script>
   // Endereços dos contratos
   const tokenLPAddress = '0x72F95e2E7b81A6ede5207C7Bd14881c84555C411';
-  const webdexFactoryAddress = '0xSeuEnderecoWEbdEXFactoryAqui'; // Troque pelo seu real
+  const webdexFactoryAddress = '0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0b'; // endereço real
 
   // ABI mínimo ERC20 para o token LP
   const erc20ABI = [
@@ -134,6 +246,7 @@
 
     } catch (error) {
       alert('Erro ao conectar MetaMask: ' + error.message);
+      console.error(error);
     }
   }
 
@@ -217,7 +330,7 @@
     ]);
   }
 
-  // Funções dos botões (ainda sem implementação real)
+  // Botões ainda sem funções implementadas
   document.getElementById('btnRebalancear').onclick = () => alert('Função Rebalancear Cotação - implementar');
   document.getElementById('btnPausar').onclick = () => alert('Função Pausar Operações - implementar');
   document.getElementById('btnCriarSubconta').onclick = () => alert('Função Criar Subconta - implementar');
@@ -227,3 +340,5 @@
 
 </body>
 </html>
+
+               
