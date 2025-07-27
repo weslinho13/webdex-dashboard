@@ -1,146 +1,115 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard WEbdEX Manager</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard WEbdEX</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background-color: #0f172a;
+      color: #f1f5f9;
       padding: 20px;
-      background: #f7f7f7;
-      color: #222;
     }
-    #connectButton {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      background: #3b82f6;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      margin-bottom: 20px;
+    .container {
+      max-width: 500px;
+      margin: auto;
     }
-    .balance-box {
-      background: white;
+    .card {
+      background-color: #1e293b;
       padding: 15px;
       margin-bottom: 15px;
-      border-radius: 8px;
-      box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+      border-radius: 10px;
     }
-    .balance-title {
-      font-weight: bold;
-      margin-bottom: 8px;
+    .btn {
+      background-color: #3b82f6;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
-    .balance-value {
-      font-size: 24px;
-      color: #2563eb;
+    .btn:hover {
+      background-color: #2563eb;
     }
   </style>
 </head>
 <body>
-  <button id="connectButton">Conectar MetaMask</button>
+  <div class="container">
+    <h1>Dashboard WEbdEX</h1>
+    <div class="card">
+      <button class="btn" onclick="connectWallet()">Conectar Carteira</button>
+      <p id="walletAddress">Carteira: -</p>
+    </div>
 
-  <div id="accountDisplay"></div>
+    <div class="card">
+      <h3>Saldo de Gás</h3>
+      <p id="gasBalance">Carregando...</p>
+    </div>
 
-  <div class="balance-box">
-    <div class="balance-title">Liquidez</div>
-    <div id="liquidez" class="balance-value">--</div>
+    <div class="card">
+      <h3>Liquidez Total</h3>
+      <p id="liquidity">Carregando...</p>
+    </div>
+
+    <div class="card">
+      <h3>Saldo de PASS</h3>
+      <p id="passBalance">Carregando...</p>
+    </div>
   </div>
 
-  <div class="balance-box">
-    <div class="balance-title">Gás</div>
-    <div id="gas" class="balance-value">--</div>
-  </div>
+  <script>
+    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0"; // WEbdEXManagerV4
 
-  <div class="balance-box">
-    <div class="balance-title">Pass (WebdEX)</div>
-    <div id="pass" class="balance-value">--</div>
-  </div>
-
-  <div class="balance-box">
-    <div class="balance-title">Ganhos Diários</div>
-    <div id="ganhosDiarios" class="balance-value">--</div>
-  </div>
-
-  <div class="balance-box">
-    <div class="balance-title">Ganhos Semanais</div>
-    <div id="ganhosSemanais" class="balance-value">--</div>
-  </div>
-
-  <div class="balance-box">
-    <div class="balance-title">Ganhos Mensais</div>
-    <div id="ganhosMensais" class="balance-value">--</div>
-  </div>
-
-<script>
-  const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-
-  // ABI simplificada só com as funções para pegar os saldos
-  // Se precisar de mais funções depois, a gente adiciona
-  const contractABI = [
-    "function getLiquidity() view returns (uint256)",
-    "function getGas() view returns (uint256)",
-    "function getPass() view returns (uint256)",
-    "function getGanhosDiarios() view returns (uint256)",
-    "function getGanhosSemanais() view returns (uint256)",
-    "function getGanhosMensais() view returns (uint256)"
-  ];
-
-  let provider;
-  let signer;
-  let contract;
-
-  const connectButton = document.getElementById("connectButton");
-  const accountDisplay = document.getElementById("accountDisplay");
-
-  connectButton.onclick = async () => {
-    if (window.ethereum) {
-      try {
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        signer = provider.getSigner();
-        contract = new ethers.Contract(contractAddress, contractABI, signer);
-
-        const account = await signer.getAddress();
-        accountDisplay.innerText = `Conectado: ${account}`;
-
-        // Carregar os saldos iniciais
-        await updateBalances();
-
-        // Você pode adicionar um listener para mudanças na conta ou na rede se quiser
-      } catch (error) {
-        alert("Erro ao conectar: " + error.message);
+    const abi = [
+      {
+        "inputs": [{ "internalType": "address", "name": "bot", "type": "address" }],
+        "name": "getBotInfo",
+        "outputs": [
+          { "internalType": "uint256", "name": "gasAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "passAmount", "type": "uint256" },
+          { "internalType": "address", "name": "tokenLiquidity", "type": "address" },
+          { "internalType": "address", "name": "tokenProfit", "type": "address" },
+          { "internalType": "uint256", "name": "totalLiquidity", "type": "uint256" },
+          { "internalType": "uint256", "name": "dailyProfit", "type": "uint256" },
+          { "internalType": "uint256", "name": "weeklyProfit", "type": "uint256" },
+          { "internalType": "uint256", "name": "monthlyProfit", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
       }
-    } else {
-      alert("MetaMask não encontrada. Instale a extensão ou use o app MetaMask.");
+    ];
+
+    let provider;
+    let signer;
+    let contract;
+
+    async function connectWallet() {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const address = accounts[0];
+          document.getElementById("walletAddress").innerText = "Carteira: " + address;
+
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+          contract = new ethers.Contract(contractAddress, abi, provider);
+
+          updateStatus(address);
+        } catch (err) {
+          alert("Erro ao conectar: " + err.message);
+        }
+      } else {
+        alert("MetaMask não detectada.");
+      }
     }
-  };
 
-  async function updateBalances() {
-    try {
-      const liquidez = await contract.getLiquidity();
-      const gas = await contract.getGas();
-      const pass = await contract.getPass();
-      const ganhosDiarios = await contract.getGanhosDiarios();
-      const ganhosSemanais = await contract.getGanhosSemanais();
-      const ganhosMensais = await contract.getGanhosMensais();
-
-      // Supondo que os valores são uint256 em wei (18 decimais)
-      document.getElementById("liquidez").innerText = ethers.utils.formatUnits(liquidez, 18);
-      document.getElementById("gas").innerText = ethers.utils.formatUnits(gas, 18);
-      document.getElementById("pass").innerText = ethers.utils.formatUnits(pass, 18);
-      document.getElementById("ganhosDiarios").innerText = ethers.utils.formatUnits(ganhosDiarios, 18);
-      document.getElementById("ganhosSemanais").innerText = ethers.utils.formatUnits(ganhosSemanais, 18);
-      document.getElementById("ganhosMensais").innerText = ethers.utils.formatUnits(ganhosMensais, 18);
-
-    } catch (error) {
-      console.error("Erro ao buscar saldos:", error);
-      alert("Erro ao buscar saldos. Veja console.");
-    }
-  }
-</script>
-
-</body>
-</html>
+    async function updateStatus(address) {
+      try {
+        const data = await contract.getBotInfo(address);
+        document.getElementById("gasBalance").innerText = `${ethers.utils.formatEther(data.gasAmount)} MATIC`;
+        document.getElementById("passBalance").innerText = `${ethers.utils.formatUnits(data.passAmount, 18)} PASS`;
+        document.getElementById("liquidity").innerText = `${ethers.utils.formatEther(data.totalLiquidity)} MATIC`;
+      } catch (err) {
+        co
