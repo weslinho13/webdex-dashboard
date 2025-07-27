@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Interface WEbdEX Factory V4 - Inicial</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #121212; color: #eee; margin: 0; padding: 20px; }
+  h1 { text-align: center; margin-bottom: 10px; }
+  #status { margin-bottom: 20px; font-weight: bold; }
+  .saldo-box { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-bottom: 30px; }
+  .saldo-item { background: #222; padding: 15px 20px; border-radius: 8px; width: 180px; text-align: center; box-shadow: 0 0 8px #00ff90; }
+  .saldo-item span { display: block; font-size: 24px; font-weight: bold; margin-top: 5px; }
+  button { padding: 10px 18px; margin: 5px; border-radius: 6px; border: none; background: #00ff90; color: #121212; font-weight: bold; cursor: pointer; }
+  button:hover { background: #00cc72; }
+  #graph-container { width: 90%; max-width: 700px; margin: auto; }
+  #notificationToggle { margin: 10px auto; display: block; }
+</style>
+</head>
+<body>
+
+<h1>WEbdEX Factory V4 - Dashboard Inicial</h1>
+<div id="status">Status: <span id="connectionStatus">Conectando...</span></div>
+
+<div class="saldo-box">
+  <div class="saldo-item">Saldo Gás <span id="saldoGas">--</span></div>
+  <div class="saldo-item">Saldo Poly <span id="saldoPoly">--</span></div>
+  <div class="saldo-item">Saldo Webdex <span id="saldoWebdex">--</span></div>
+  <div class="saldo-item">Liquidez Total <span id="saldoLiquidez">--</span></div>
+  <div class="saldo-item">Ganho Diário <span id="ganhoDiario">--</span></div>
+  <div class="saldo-item">Ganho Semanal <span id="ganhoSemanal">--</span></div>
+  <div class="saldo-item">Ganho Mensal <span id="ganhoMensal">--</span></div>
+</div>
+
+<div style="text-align:center;">
+  <button id="btnAddGas">Adicionar Gás</button>
+  <button id="btnAddPass">Adicionar Pass</button>
+  <button id="btnRemoveLiquidity">Remover Liquidez</button>
+</div>
+
+<label style="display:block; text-align:center; margin-top:20px;">
+  <input type="checkbox" id="notificationToggle" />
+  Habilitar notificações com som
+</label>
+
+<div id="graph-container">
+  <canvas id="ganhosChart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+  let web3;
+  let contract;
+  let userAccount;
+
+  const abi = [
+    {
+      "inputs": [],
+      "name": "getBalances",
+      "outputs": [
+        { "internalType": "uint256", "name": "gas", "type": "uint256" },
+        { "internalType": "uint256", "name": "poly", "type": "uint256" },
+        { "internalType": "uint256", "name": "webdex", "type": "uint256" },
+        { "internalType": "uint256", "name": "liquidez", "type": "uint256" },
+        { "internalType": "int256", "name": "ganhoDiario", "type": "int256" },
+        { "internalType": "int256", "name": "ganhoSemanal", "type": "int256" },
+        { "internalType": "int256", "name": "ganhoMensal", "type": "int256" }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ];
+
+  async function init() {
+    if (window.ethereum) {
+      web3 = new Web3(window.ethereum);
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const accounts = await web3.eth.getAccounts();
+        userAccount = accounts[0];
+        document.getElementById("connectionStatus").textContent = userAccount;
+
+        contract = new web3.eth.Contract(abi, contractAddress);
+
+        await atualizarSaldos();
+        inicializarGrafico();
+      } catch (error) {
+        document.getElementById("connectionStatus").textContent = "Conexão negada";
+        console.error(error);
+      }
+    } else {
+      document.getElementById("connectionStatus").textContent = "MetaMask não detectada";
+    }
+  }
+
+  async function atualizarSaldos() {
+    document.getElementById("saldoGas").textContent = "0.123";
+    document.getElementById("saldoPoly").textContent = "250.5";
+    document.getElementById("saldoWebdex").textContent = "1000.0";
+    document.getElementById("saldoLiquidez").textContent = "5200";
+    document.getElementById("ganhoDiario").textContent = "0.30%";
+    document.getElementById("ganhoSemanal").textContent = "2.10%";
+    document.getElementById("ganhoMensal").textContent = "9.5%";
+
+    atualizarGrafico();
+  }
+
+  let chart;
+  const ganhosData = [
+    { day: 'Seg', ganho: 0.25 },
+    { day: 'Ter', ganho: -0.05 },
+    { day: 'Qua', ganho: 0.30 },
+    { day: 'Qui', ganho: 0.35 },
+    { day: 'Sex', ganho: 0.40 },
+    { day: 'Sáb', ganho: 0.15 },
+    { day: 'Dom', ganho: 0.20 }
+  ];
+
+  function inicializarGrafico() {
+    const ctx = document.getElementById('ganhosChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ganhosData.map(d => d.day),
+        datasets: [{
+          label: 'Ganho Diário (%)',
+          data: ganhosData.map(d => d.ganho),
+          backgroundColor: ganhosData.map(d => d.ganho >= 0 ? 'rgba(0,255,144,0.7)' : 'rgba(255,50,50,0.7)')
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  function atualizarGrafico() {
+    chart.data.datasets[0].data = ganhosData.map(d => d.ganho);
+    chart.update();
+  }
+
+  const notificationToggle = document.getElementById("notificationToggle");
+  notificationToggle.addEventListener('change', () => {
+    if (notificationToggle.checked) {
+      if (Notification.permission !== "granted") {
+        Notification.requestPermission();
+      }
+    }
+  });
+
+  function showNotification(message) {
+    if (!notificationToggle.checked) return;
+
+    if (Notification.permission === "granted") {
+      const notification = new Notification("WEbdEX Bot", {
+        body: message,
+        icon: "https://cdn-icons-png.flaticon.com/512/190/190411.png"
+      });
+    }
+  }
+
+  document.getElementById("btnAddGas").onclick = () => {
+    alert("Função adicionar gás - implementar");
+    showNotification("Solicitado adicionar gás");
+  };
+  document.getElementById("btnAddPass").onclick = () => {
+    alert("Função adicionar pass - implementar");
+    showNotification("Solicitado adicionar pass");
+  };
+  document.getElementById("btnRemoveLiquidity").onclick = () => {
+    alert("Função remover liquidez - implementar");
+    showNotification("Solicitado remover liquidez");
+  };
+
+  window.onload = init;
+</script>
+
+</body>
+</html>
