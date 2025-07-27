@@ -152,9 +152,14 @@
 </div>
 
 <script>
-  // Endereços dos contratos
-  const tokenLPAddress = '0x72F95e2E7b81A6ede5207C7Bd14881c84555C411';
-  const webdexFactoryAddress = '0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0b';
+  let web3;
+  let userAddress;
+  let contractLP;
+  let contractFactory;
+
+  // Endereços com checksum corretos para rede Polygon
+  const tokenLPAddressRaw = '0x72F95e2E7b81A6ede5207C7Bd14881c84555C411';
+  const webdexFactoryAddressRaw = '0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0b';
 
   // ABI mínimo ERC20 para o token LP
   const erc20ABI = [
@@ -181,7 +186,7 @@
     }
   ];
 
-  // ABI parcial do WEbdEXFactoryV4 com as funções que retornam os saldos
+  // ABI parcial do WEbdEXFactoryV4
   const factoryABI = [
     {
       "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
@@ -213,49 +218,69 @@
     }
   ];
 
-  let web3;
-  let userAddress;
-  let contractLP;
-  let contractFactory;
-
+  // Função principal para conectar MetaMask e iniciar contratos
   async function conectarMetaMask() {
     if (typeof window.ethereum === 'undefined') {
       document.getElementById('status').textContent = 'MetaMask não detectada. Por favor, instale e ative.';
       return;
     }
-    try {
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
-      web3 = new Web3(window.ethereum);
-      const accounts = await web3.eth.getAccounts();
-      userAddress = accounts[0];
 
+    try {
+      // Solicitar conexão e contas
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      userAddress = accounts[0];
+      document.getElementById('status').textContent = `Carteira conectada: ${userAddress}`;
+
+      // Inicializar web3
+      web3 = new Web3(window.ethereum);
+
+      // Validar rede Polygon (ID 137 para mainnet)
+      const networkId = await web3.eth.net.getId();
+      if (networkId !== 137) {
+        document.getElementById('status').textContent = `Rede incorreta. Conecte a MetaMask à rede Polygon Mainnet. (Network ID: ${networkId})`;
+        return;
+      }
+
+      // Aplicar checksum nos endereços
+      const tokenLPAddress = web3.utils.toChecksumAddress(tokenLPAddressRaw);
+      const webdexFactoryAddress = web3.utils.toChecksumAddress(webdexFactoryAddressRaw);
+
+      // Instanciar contratos
       contractLP = new web3.eth.Contract(erc20ABI, tokenLPAddress);
       contractFactory = new web3.eth.Contract(factoryABI, webdexFactoryAddress);
 
+      // Atualizar UI
       document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
       document.getElementById('btnConectar').disabled = true;
-      document.getElementById('status').textContent = 'MetaMask conectada com sucesso!';
 
-      atualizarTodosSaldos();
+      // Atualizar todos saldos
+      await atualizarTodosSaldos();
 
-      window.ethereum.on('accountsChanged', async function(accounts) {
+      // Ouvir troca de conta na MetaMask
+      window.ethereum.on('accountsChanged', async (accounts) => {
         userAddress = accounts[0];
         document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
+        document.getElementById('status').textContent = `Conta alterada: ${userAddress}`;
         await atualizarTodosSaldos();
       });
 
+      // Ouvir troca de rede na MetaMask
+      window.ethereum.on('chainChanged', (chainId) => {
+        window.location.reload(); // recarrega página para atualizar rede
+      });
+
     } catch (error) {
+      console.error('Erro ao conectar MetaMask:', error);
       document.getElementById('status').textContent = 'Erro ao conectar MetaMask: ' + error.message;
-      console.error(error);
     }
   }
 
+  // Atualizações individuais dos saldos
   async function atualizarSaldoLP() {
     try {
       const balance = await contractLP.methods.balanceOf(userAddress).call();
       const decimals = await contractLP.methods.decimals().call();
       const symbol = await contractLP.methods.symbol().call();
-
       const formatted = balance / (10 ** decimals);
       document.getElementById('saldoLP').textContent = `Saldo Token LP (${symbol}): ${formatted.toLocaleString('pt-BR')}`;
     } catch (error) {
@@ -330,11 +355,12 @@
     ]);
   }
 
-  // Botões ainda sem funções implementadas
+  // Botões com alertas para funções não implementadas ainda
   document.getElementById('btnRebalancear').onclick = () => alert('Função Rebalancear Cotação - implementar');
   document.getElementById('btnPausar').onclick = () => alert('Função Pausar Operações - implementar');
   document.getElementById('btnCriarSubconta').onclick = () => alert('Função Criar Subconta - implementar');
 
+  // Conectar MetaMask ao clicar no botão
   document.getElementById('btnConectar').onclick = conectarMetaMask;
 </script>
 
