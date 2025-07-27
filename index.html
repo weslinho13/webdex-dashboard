@@ -1,29 +1,51 @@
 
- <!DOCTYPE html>
+         <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Saldo Token LP</title>
+<title>Dashboard WEbdEXFactoryV4 Completo</title>
 <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  #saldo { font-size: 1.5em; margin-top: 20px; }
-  button { padding: 10px 20px; font-size: 1em; cursor: pointer; }
+  body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+  #container { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+  h1 { color: #222; }
+  button { padding: 10px 20px; font-size: 1em; cursor: pointer; margin: 10px 0; }
+  #status { margin-bottom: 15px; color: green; }
+  .saldo-item { margin: 10px 0; font-size: 1.2em; }
+  .acoes { margin-top: 25px; }
+  .acoes button { margin-right: 10px; }
 </style>
 </head>
 <body>
 
-<h1>Verificar Saldo Token LP</h1>
-<button id="btnConectar">Conectar MetaMask</button>
+<div id="container">
+  <h1>Dashboard WEbdEXFactoryV4 Completo</h1>
+  <button id="btnConectar">Conectar MetaMask</button>
+  <div id="status"></div>
 
-<div id="saldo"></div>
+  <div id="saldos">
+    <div class="saldo-item" id="saldoLP">Saldo Token LP: ---</div>
+    <div class="saldo-item" id="saldoPOLY">Saldo POLY (MATIC): ---</div>
+    <div class="saldo-item" id="saldoWebdex">Saldo Webdex: ---</div>
+    <div class="saldo-item" id="saldoGas">Saldo Gás: ---</div>
+    <div class="saldo-item" id="saldoGasAdicionado">Saldo Gás Adicionado: ---</div>
+    <div class="saldo-item" id="saldoLiquidez">Liquidez: ---</div>
+  </div>
+
+  <div class="acoes">
+    <button id="btnRebalancear">Rebalancear Cotação</button>
+    <button id="btnPausar">Pausar Operações</button>
+    <button id="btnCriarSubconta">Criar Subconta</button>
+  </div>
+</div>
 
 <script>
-  const tokenAddress = '0x72F95e2E7b81A6ede5207C7Bd14881c84555C411';
+  // Endereços dos contratos
+  const tokenLPAddress = '0x72F95e2E7b81A6ede5207C7Bd14881c84555C411';
+  const webdexFactoryAddress = '0xSeuEnderecoWEbdEXFactoryAqui'; // Troque pelo seu real
 
-  // ABI mínimo ERC20 para balanceOf e decimals
-  const minABI = [
-    // balanceOf
+  // ABI mínimo ERC20 para o token LP
+  const erc20ABI = [
     {
       constant: true,
       inputs: [{ name: "_owner", type: "address" }],
@@ -31,7 +53,6 @@
       outputs: [{ name: "balance", type: "uint256" }],
       type: "function",
     },
-    // decimals
     {
       constant: true,
       inputs: [],
@@ -39,15 +60,6 @@
       outputs: [{ name: "", type: "uint8" }],
       type: "function",
     },
-    // name
-    {
-      constant: true,
-      inputs: [],
-      name: "name",
-      outputs: [{ name: "", type: "string" }],
-      type: "function",
-    },
-    // symbol
     {
       constant: true,
       inputs: [],
@@ -57,62 +69,160 @@
     }
   ];
 
-  let web3;
-  let contract;
-  let userAddress;
-
-  async function connect() {
-    if (window.ethereum) {
-      try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        web3 = new Web3(window.ethereum);
-
-        const accounts = await web3.eth.getAccounts();
-        userAddress = accounts[0];
-
-        contract = new web3.eth.Contract(minABI, tokenAddress);
-
-        document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
-        document.getElementById('btnConectar').disabled = true;
-
-        mostrarSaldo();
-
-        // Atualiza saldo se trocar conta na MetaMask
-        window.ethereum.on('accountsChanged', function (accounts) {
-          userAddress = accounts[0];
-          mostrarSaldo();
-          document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
-        });
-
-      } catch (error) {
-        alert('Erro ao conectar: ' + error.message);
-      }
-    } else {
-      alert('MetaMask não detectada. Instale e ative-a para continuar.');
+  // ABI parcial do WEbdEXFactoryV4 com as funções que retornam os saldos
+  const factoryABI = [
+    {
+      "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
+      "name": "getWebdexBalance",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
+      "name": "getGasBalance",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
+      "name": "getAddedGasBalance",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
+      "name": "getLiquidityBalance",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
     }
-  }
+  ];
 
-  async function mostrarSaldo() {
+  let web3;
+  let userAddress;
+  let contractLP;
+  let contractFactory;
+
+  async function conectarMetaMask() {
+    if (!window.ethereum) {
+      alert('MetaMask não detectada. Instale e ative-a para continuar.');
+      return;
+    }
     try {
-      const balance = await contract.methods.balanceOf(userAddress).call();
-      const decimals = await contract.methods.decimals().call();
-      const name = await contract.methods.name().call();
-      const symbol = await contract.methods.symbol().call();
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      web3 = new Web3(window.ethereum);
+      const accounts = await web3.eth.getAccounts();
+      userAddress = accounts[0];
 
-      const formattedBalance = balance / (10 ** decimals);
+      contractLP = new web3.eth.Contract(erc20ABI, tokenLPAddress);
+      contractFactory = new web3.eth.Contract(factoryABI, webdexFactoryAddress);
 
-      document.getElementById('saldo').innerHTML = `
-        <strong>${name} (${symbol})</strong><br>
-        Saldo: ${formattedBalance.toLocaleString('pt-BR')}
-      `;
+      document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
+      document.getElementById('btnConectar').disabled = true;
+      document.getElementById('status').textContent = 'MetaMask conectada com sucesso!';
+
+      atualizarTodosSaldos();
+
+      window.ethereum.on('accountsChanged', async function(accounts) {
+        userAddress = accounts[0];
+        document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
+        await atualizarTodosSaldos();
+      });
 
     } catch (error) {
-      document.getElementById('saldo').textContent = 'Erro ao consultar saldo.';
-      console.error(error);
+      alert('Erro ao conectar MetaMask: ' + error.message);
     }
   }
 
-  document.getElementById('btnConectar').onclick = connect;
+  async function atualizarSaldoLP() {
+    try {
+      const balance = await contractLP.methods.balanceOf(userAddress).call();
+      const decimals = await contractLP.methods.decimals().call();
+      const symbol = await contractLP.methods.symbol().call();
+
+      const formatted = balance / (10 ** decimals);
+      document.getElementById('saldoLP').textContent = `Saldo Token LP (${symbol}): ${formatted.toLocaleString('pt-BR')}`;
+    } catch (error) {
+      console.error('Erro ao obter saldo LP:', error);
+      document.getElementById('saldoLP').textContent = 'Erro ao obter saldo Token LP.';
+    }
+  }
+
+  async function atualizarSaldoPOLY() {
+    try {
+      const balance = await web3.eth.getBalance(userAddress);
+      const formatted = web3.utils.fromWei(balance, 'ether');
+      document.getElementById('saldoPOLY').textContent = `Saldo POLY (MATIC): ${parseFloat(formatted).toLocaleString('pt-BR')} MATIC`;
+    } catch (error) {
+      console.error('Erro ao obter saldo POLY:', error);
+      document.getElementById('saldoPOLY').textContent = 'Erro ao obter saldo POLY.';
+    }
+  }
+
+  async function atualizarSaldoWebdex() {
+    try {
+      const saldo = await contractFactory.methods.getWebdexBalance(userAddress).call();
+      const saldoFormatado = web3.utils.fromWei(saldo, 'ether');
+      document.getElementById('saldoWebdex').textContent = `Saldo Webdex: ${parseFloat(saldoFormatado).toLocaleString('pt-BR')}`;
+    } catch (error) {
+      console.error('Erro ao obter saldo Webdex:', error);
+      document.getElementById('saldoWebdex').textContent = 'Erro ao obter saldo Webdex.';
+    }
+  }
+
+  async function atualizarSaldoGas() {
+    try {
+      const saldo = await contractFactory.methods.getGasBalance(userAddress).call();
+      const saldoFormatado = web3.utils.fromWei(saldo, 'ether');
+      document.getElementById('saldoGas').textContent = `Saldo Gás: ${parseFloat(saldoFormatado).toLocaleString('pt-BR')}`;
+    } catch (error) {
+      console.error('Erro ao obter saldo Gás:', error);
+      document.getElementById('saldoGas').textContent = 'Erro ao obter saldo Gás.';
+    }
+  }
+
+  async function atualizarSaldoGasAdicionado() {
+    try {
+      const saldo = await contractFactory.methods.getAddedGasBalance(userAddress).call();
+      const saldoFormatado = web3.utils.fromWei(saldo, 'ether');
+      document.getElementById('saldoGasAdicionado').textContent = `Saldo Gás Adicionado: ${parseFloat(saldoFormatado).toLocaleString('pt-BR')}`;
+    } catch (error) {
+      console.error('Erro ao obter saldo Gás Adicionado:', error);
+      document.getElementById('saldoGasAdicionado').textContent = 'Erro ao obter saldo Gás Adicionado.';
+    }
+  }
+
+  async function atualizarLiquidez() {
+    try {
+      const saldo = await contractFactory.methods.getLiquidityBalance(userAddress).call();
+      const saldoFormatado = web3.utils.fromWei(saldo, 'ether');
+      document.getElementById('saldoLiquidez').textContent = `Liquidez: ${parseFloat(saldoFormatado).toLocaleString('pt-BR')}`;
+    } catch (error) {
+      console.error('Erro ao obter liquidez:', error);
+      document.getElementById('saldoLiquidez').textContent = 'Erro ao obter liquidez.';
+    }
+  }
+
+  async function atualizarTodosSaldos() {
+    await Promise.all([
+      atualizarSaldoLP(),
+      atualizarSaldoPOLY(),
+      atualizarSaldoWebdex(),
+      atualizarSaldoGas(),
+      atualizarSaldoGasAdicionado(),
+      atualizarLiquidez()
+    ]);
+  }
+
+  // Funções dos botões (ainda sem implementação real)
+  document.getElementById('btnRebalancear').onclick = () => alert('Função Rebalancear Cotação - implementar');
+  document.getElementById('btnPausar').onclick = () => alert('Função Pausar Operações - implementar');
+  document.getElementById('btnCriarSubconta').onclick = () => alert('Função Criar Subconta - implementar');
+
+  document.getElementById('btnConectar').onclick = conectarMetaMask;
 </script>
 
 </body>
