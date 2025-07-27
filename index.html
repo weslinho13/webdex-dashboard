@@ -154,7 +154,7 @@
 <script>
   // Endereços dos contratos
   const tokenLPAddress = '0x72F95e2E7b81A6ede5207C7Bd14881c84555C411';
-  const webdexFactoryAddress = '0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0b'; // endereço real
+  const webdexFactoryAddress = '0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0b';
 
   // ABI mínimo ERC20 para o token LP
   const erc20ABI = [
@@ -219,8 +219,8 @@
   let contractFactory;
 
   async function conectarMetaMask() {
-    if (!window.ethereum) {
-      alert('MetaMask não detectada. Instale e ative-a para continuar.');
+    if (typeof window.ethereum === 'undefined') {
+      document.getElementById('status').textContent = 'MetaMask não detectada. Por favor, instale e ative.';
       return;
     }
     try {
@@ -245,7 +245,7 @@
       });
 
     } catch (error) {
-      alert('Erro ao conectar MetaMask: ' + error.message);
+      document.getElementById('status').textContent = 'Erro ao conectar MetaMask: ' + error.message;
       console.error(error);
     }
   }
@@ -340,5 +340,3 @@
 
 </body>
 </html>
-
-               
