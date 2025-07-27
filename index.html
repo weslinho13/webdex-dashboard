@@ -1,88 +1,119 @@
 
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WEbdEX Factory V4 - Dashboard</title>
-  <style>
-    body {
-      background-color: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 1rem;
-    }
-    .card {
-      background-color: #111;
-      border: 1px solid #0f0;
-      margin: 10px auto;
-      padding: 20px;
-      border-radius: 10px;
-      width: 80%;
-      max-width: 300px;
-      box-shadow: 0 0 10px #0f0;
-    }
-    .btn {
-      margin: 20px auto;
-      padding: 10px 20px;
-      font-size: 16px;
-      color: #fff;
-      background-color: #0f0;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    .btn:disabled {
-      background-color: #444;
-      cursor: not-allowed;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Saldo Token LP</title>
+<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  #saldo { font-size: 1.5em; margin-top: 20px; }
+  button { padding: 10px 20px; font-size: 1em; cursor: pointer; }
+</style>
 </head>
 <body>
-  <h1>WEbdEX Factory V4 - Dashboard Inicial</h1>
-  <p id="status">Status: Conexão negada</p>
-  <button class="btn" id="connectButton">Conectar MetaMask</button>
 
-  <div class="card">Saldo Gás<br><span id="saldoGas">0.000</span></div>
-  <div class="card">Saldo Poly<br><span id="saldoPoly">0.000</span></div>
-  <div class="card">Saldo Webdex<br><span id="saldoWebdex">0.000</span></div>
-  <div class="card">Liquidez Total<br><span id="liquidezTotal">0</span></div>
-  <div class="card">Ganho Diário<br><span id="ganhoDiario">0%</span></div>
+<h1>Verificar Saldo Token LP</h1>
+<button id="btnConectar">Conectar MetaMask</button>
 
-  <script>
-    const connectButton = document.getElementById('connectButton');
-    const status = document.getElementById('status');
+<div id="saldo"></div>
 
-    async function connectWallet() {
-      if (window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          const address = accounts[0];
-          status.innerText = `Status: Conectado (${address.slice(0, 6)}...${address.slice(-4)})`;
-          connectButton.style.display = 'none';
-          loadDashboard(address);
-        } catch (err) {
-          status.innerText = 'Erro ao conectar: Acesso negado';
-        }
-      } else {
-        alert('MetaMask não encontrada. Use o navegador da MetaMask.');
+<script>
+  const tokenAddress = '0x72F95e2E7b81A6ede5207C7Bd14881c84555C411';
+
+  // ABI mínimo ERC20 para balanceOf e decimals
+  const minABI = [
+    // balanceOf
+    {
+      constant: true,
+      inputs: [{ name: "_owner", type: "address" }],
+      name: "balanceOf",
+      outputs: [{ name: "balance", type: "uint256" }],
+      type: "function",
+    },
+    // decimals
+    {
+      constant: true,
+      inputs: [],
+      name: "decimals",
+      outputs: [{ name: "", type: "uint8" }],
+      type: "function",
+    },
+    // name
+    {
+      constant: true,
+      inputs: [],
+      name: "name",
+      outputs: [{ name: "", type: "string" }],
+      type: "function",
+    },
+    // symbol
+    {
+      constant: true,
+      inputs: [],
+      name: "symbol",
+      outputs: [{ name: "", type: "string" }],
+      type: "function",
+    }
+  ];
+
+  let web3;
+  let contract;
+  let userAddress;
+
+  async function connect() {
+    if (window.ethereum) {
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        web3 = new Web3(window.ethereum);
+
+        const accounts = await web3.eth.getAccounts();
+        userAddress = accounts[0];
+
+        contract = new web3.eth.Contract(minABI, tokenAddress);
+
+        document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
+        document.getElementById('btnConectar').disabled = true;
+
+        mostrarSaldo();
+
+        // Atualiza saldo se trocar conta na MetaMask
+        window.ethereum.on('accountsChanged', function (accounts) {
+          userAddress = accounts[0];
+          mostrarSaldo();
+          document.getElementById('btnConectar').textContent = 'Conectado: ' + userAddress;
+        });
+
+      } catch (error) {
+        alert('Erro ao conectar: ' + error.message);
       }
+    } else {
+      alert('MetaMask não detectada. Instale e ative-a para continuar.');
     }
+  }
 
-    function loadDashboard(address) {
-      // Aqui você pode integrar com contrato Web3 (WebdEXFactoryV4)
-      // Por enquanto usa valores simulados de exemplo:
-      document.getElementById('saldoGas').innerText = '0.123';
-      document.getElementById('saldoPoly').innerText = '250.5';
-      document.getElementById('saldoWebdex').innerText = '1000.0';
-      document.getElementById('liquidezTotal').innerText = '5200';
-      document.getElementById('ganhoDiario').innerText = '0.30%';
+  async function mostrarSaldo() {
+    try {
+      const balance = await contract.methods.balanceOf(userAddress).call();
+      const decimals = await contract.methods.decimals().call();
+      const name = await contract.methods.name().call();
+      const symbol = await contract.methods.symbol().call();
+
+      const formattedBalance = balance / (10 ** decimals);
+
+      document.getElementById('saldo').innerHTML = `
+        <strong>${name} (${symbol})</strong><br>
+        Saldo: ${formattedBalance.toLocaleString('pt-BR')}
+      `;
+
+    } catch (error) {
+      document.getElementById('saldo').textContent = 'Erro ao consultar saldo.';
+      console.error(error);
     }
+  }
 
-    connectButton.onclick = connectWallet;
-  </script>
+  document.getElementById('btnConectar').onclick = connect;
+</script>
+
 </body>
 </html>
-
-    
