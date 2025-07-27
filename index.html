@@ -3,176 +3,97 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Interface WEbdEXManagerV4</title>
+  <title>WEbdEX - Saldo Básico</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; max-width: 480px; }
-    h1, h2 { text-align: center; }
-    section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
-    label { display: block; margin-top: 10px; }
-    input[type="number"] { width: 100%; padding: 8px; margin-top: 4px; }
-    button { margin-top: 10px; padding: 10px; width: 100%; cursor: pointer; background: #007bff; border: none; color: white; font-weight: bold; border-radius: 5px; }
-    button:disabled { background: #aaa; cursor: default; }
-    #status { margin: 15px 0; padding: 10px; border-radius: 5px; font-weight: bold; text-align: center; }
-    #status.error { background: #fdd; color: #900; }
-    #status.success { background: #dfd; color: #060; }
+    body { font-family: Arial, sans-serif; max-width: 400px; margin: 20px auto; }
+    h1 { text-align: center; }
+    .saldo { border: 1px solid #ccc; padding: 12px; margin: 12px 0; border-radius: 6px; }
+    .label { font-weight: bold; }
+    #connectBtn { display: block; margin: 20px auto; padding: 10px 20px; font-size: 16px; cursor: pointer; }
   </style>
 </head>
 <body>
-
-  <h1>WEbdEX Manager V4</h1>
-
+  <h1>WEbdEX - Saldos Básicos</h1>
   <button id="connectBtn">Conectar MetaMask</button>
 
-  <div id="walletAddress" style="margin-top: 10px; text-align:center; font-weight:bold;"></div>
+  <div id="walletAddress" style="text-align:center; font-weight:bold; margin-top: 10px;"></div>
 
-  <section>
-    <h2>Liquidez</h2>
-    <div id="liquidezValor">Carregando...</div>
-    <button id="refreshLiquidityBtn">Atualizar Liquidez</button>
-  </section>
-
-  <section>
-    <h2>Adicionar Gás</h2>
-    <label for="addGasAmount">Quantidade (wei):</label>
-    <input type="number" id="addGasAmount" min="0" step="1" placeholder="Ex: 1000000000000000000" />
-    <button id="addGasBtn">Adicionar Gás</button>
-  </section>
-
-  <section>
-    <h2>Remover Gás</h2>
-    <label for="removeGasAmount">Quantidade (wei):</label>
-    <input type="number" id="removeGasAmount" min="0" step="1" placeholder="Ex: 1000000000000000000" />
-    <button id="removeGasBtn">Remover Gás</button>
-  </section>
-
-  <section>
-    <h2>Adicionar Pass (WebdEX)</h2>
-    <label for="addPassAmount">Quantidade (wei):</label>
-    <input type="number" id="addPassAmount" min="0" step="1" placeholder="Ex: 1000000000000000000" />
-    <button id="addPassBtn">Adicionar Pass</button>
-  </section>
-
-  <section>
-    <h2>Remover Pass (WebdEX)</h2>
-    <label for="removePassAmount">Quantidade (wei):</label>
-    <input type="number" id="removePassAmount" min="0" step="1" placeholder="Ex: 1000000000000000000" />
-    <button id="removePassBtn">Remover Pass</button>
-  </section>
-
-  <section>
-    <h2>Adicionar Liquidez</h2>
-    <label for="addLiquidityAmount">Quantidade (wei):</label>
-    <input type="number" id="addLiquidityAmount" min="0" step="1" placeholder="Ex: 1000000000000000000" />
-    <button id="addLiquidityBtn">Adicionar Liquidez</button>
-  </section>
-
-  <section>
-    <h2>Remover Liquidez</h2>
-    <label for="removeLiquidityAmount">Quantidade (wei):</label>
-    <input type="number" id="removeLiquidityAmount" min="0" step="1" placeholder="Ex: 1000000000000000000" />
-    <button id="removeLiquidityBtn">Remover Liquidez</button>
-  </section>
-
-  <div id="status"></div>
+  <div class="saldo"><span class="label">Liquidez Total:</span> <span id="liquidez">-</span></div>
+  <div class="saldo"><span class="label">Gás Disponível:</span> <span id="gas">-</span></div>
+  <div class="saldo"><span class="label">Pass (WebdEX):</span> <span id="pass">-</span></div>
+  <div class="saldo"><span class="label">Ganhos Diários:</span> <span id="ganhosDiarios">-</span></div>
+  <div class="saldo"><span class="label">Ganhos Semanais:</span> <span id="ganhosSemanais">-</span></div>
+  <div class="saldo"><span class="label">Ganhos Mensais:</span> <span id="ganhosMensais">-</span></div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
   <script>
     const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-    // ABI simplificada com as funções usadas, ajustar conforme o ABI real:
     const contractABI = [
-      "function gasAdd(uint256 amount) external",
-      "function gasRemove(uint256 amount) external",
-      "function passAdd(uint256 amount) external",
-      "function passRemove(uint256 amount) external",
-      "function liquidityAdd(uint256 amount) external",
-      "function liquidityRemove(uint256 amount) external",
-      "function liquidityTotal() view returns (uint256)"
+      "function liquidityTotal() view returns (uint256)",
+      "function gasTotal() view returns (uint256)",
+      "function passTotal() view returns (uint256)",
+      "function getGanhosDiarios() view returns (uint256)",
+      "function getGanhosSemanais() view returns (uint256)",
+      "function getGanhosMensais() view returns (uint256)"
     ];
 
-    let provider;
-    let signer;
-    let contract;
+    let provider, signer, contract;
 
     const connectBtn = document.getElementById("connectBtn");
     const walletAddressDiv = document.getElementById("walletAddress");
-    const statusDiv = document.getElementById("status");
 
-    const liquidezValorDiv = document.getElementById("liquidezValor");
-    const refreshLiquidityBtn = document.getElementById("refreshLiquidityBtn");
+    const liquidezSpan = document.getElementById("liquidez");
+    const gasSpan = document.getElementById("gas");
+    const passSpan = document.getElementById("pass");
+    const ganhosDiariosSpan = document.getElementById("ganhosDiarios");
+    const ganhosSemanaisSpan = document.getElementById("ganhosSemanais");
+    const ganhosMensaisSpan = document.getElementById("ganhosMensais");
 
-    function showStatus(message, isError = false) {
-      statusDiv.textContent = message;
-      if (isError) {
-        statusDiv.classList.add("error");
-        statusDiv.classList.remove("success");
-      } else {
-        statusDiv.classList.remove("error");
-        statusDiv.classList.add("success");
-      }
-    }
-
-    async function connectWallet() {
+    async function connect() {
       if (typeof window.ethereum === "undefined") {
-        alert("MetaMask não encontrada. Instale ou ative a extensão.");
+        alert("MetaMask não detectada!");
         return;
       }
       try {
         await window.ethereum.request({ method: "eth_requestAccounts" });
         provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
-        contract = new ethers.Contract(contractAddress, contractABI, signer);
+        contract = new ethers.Contract(contractAddress, contractABI, provider);
         const address = await signer.getAddress();
         walletAddressDiv.textContent = "Conectado: " + address;
-        showStatus("Carteira conectada com sucesso.", false);
-        await updateLiquidity();
+        await updateSaldos();
       } catch (err) {
-        console.error(err);
-        showStatus("Erro ao conectar carteira.", true);
+        alert("Erro na conexão: " + err.message);
       }
     }
 
-    async function updateLiquidity() {
+    async function updateSaldos() {
       try {
-        liquidezValorDiv.textContent = "Carregando...";
-        const total = await contract.liquidityTotal();
-        // Converte de wei para ether para exibir valor legível:
-        liquidezValorDiv.textContent = ethers.utils.formatEther(total) + " ETH";
+        const liquidez = await contract.liquidityTotal();
+        liquidezSpan.textContent = ethers.utils.formatEther(liquidez) + " ETH";
+
+        const gas = await contract.gasTotal();
+        gasSpan.textContent = ethers.utils.formatEther(gas) + " ETH";
+
+        const pass = await contract.passTotal();
+        passSpan.textContent = ethers.utils.formatEther(pass) + " Pass";
+
+        const ganhosDiarios = await contract.getGanhosDiarios();
+        ganhosDiariosSpan.textContent = ethers.utils.formatEther(ganhosDiarios) + " ETH";
+
+        const ganhosSemanais = await contract.getGanhosSemanais();
+        ganhosSemanaisSpan.textContent = ethers.utils.formatEther(ganhosSemanais) + " ETH";
+
+        const ganhosMensais = await contract.getGanhosMensais();
+        ganhosMensaisSpan.textContent = ethers.utils.formatEther(ganhosMensais) + " ETH";
+
       } catch (err) {
         console.error(err);
-        liquidezValorDiv.textContent = "Erro ao carregar liquidez";
+        alert("Erro ao buscar saldos: " + err.message);
       }
     }
 
-    async function callContractFunction(funcName, inputId) {
-      const input = document.getElementById(inputId);
-      const val = input.value;
-      if (!val || val <= 0) {
-        alert("Digite um valor válido maior que zero.");
-        return;
-      }
-      try {
-        showStatus("Enviando transação...");
-        const tx = await contract[funcName](val);
-        await tx.wait();
-        showStatus("Transação confirmada!");
-        input.value = "";
-        await updateLiquidity();
-      } catch (err) {
-        console.error(err);
-        showStatus("Erro na transação: " + (err.message || err), true);
-      }
-    }
-
-    connectBtn.onclick = connectWallet;
-    refreshLiquidityBtn.onclick = updateLiquidity;
-
-    document.getElementById("addGasBtn").onclick = () => callContractFunction("gasAdd", "addGasAmount");
-    document.getElementById("removeGasBtn").onclick = () => callContractFunction("gasRemove", "removeGasAmount");
-    document.getElementById("addPassBtn").onclick = () => callContractFunction("passAdd", "addPassAmount");
-    document.getElementById("removePassBtn").onclick = () => callContractFunction("passRemove", "removePassAmount");
-    document.getElementById("addLiquidityBtn").onclick = () => callContractFunction("liquidityAdd", "addLiquidityAmount");
-    document.getElementById("removeLiquidityBtn").onclick = () => callContractFunction("liquidityRemove", "removeLiquidityAmount");
-
+    connectBtn.onclick = connect;
   </script>
 </body>
 </html>
