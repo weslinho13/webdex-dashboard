@@ -3,274 +3,207 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dashboard WEbdEX - Completo</title>
+<title>Interface WEbdEX Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #f7f7f7;
-    margin: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 25px;
-  }
-
-  .card {
-    background: white;
-    box-shadow: 0 0 8px rgba(0,0,0,0.1);
-    border-radius: 10px;
-    padding: 25px 40px;
-    text-align: center;
-    max-width: 320px;
-    width: 90%;
-  }
-
-  .card-title {
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 12px;
-    color: #333;
-  }
-
-  .card-value {
-    font-size: 44px;
-    font-weight: 900;
-    color: #4caf50;
-  }
-
-  button {
-    margin-top: 12px;
-    padding: 10px 18px;
-    font-size: 16px;
-    font-weight: 700;
-    color: white;
-    background-color: #4caf50;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-
-  button:hover {
-    background-color: #388e3c;
-  }
-
-  .section {
-    background: white;
-    box-shadow: 0 0 6px rgba(0,0,0,0.08);
-    border-radius: 10px;
-    padding: 20px 30px;
-    max-width: 350px;
-    width: 90%;
-  }
-
-  .section-title {
-    font-weight: 700;
-    font-size: 20px;
-    margin-bottom: 14px;
-    color: #222;
-  }
-
-  .input-group {
-    margin-top: 8px;
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-  }
-
-  input[type="number"] {
-    flex: 1;
-    padding: 8px 10px;
-    font-size: 16px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-  }
-
+  body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 1rem; background:#f5f5f5; }
+  h1 { text-align: center; }
+  .section { background: white; margin: 1rem 0; padding: 1rem; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
+  label { display: block; margin-top: 0.8rem; font-weight: bold; }
+  input[type="number"] { width: 100%; padding: 0.5rem; font-size: 1rem; margin-top: 0.3rem; }
+  button { margin-top: 0.8rem; padding: 0.6rem 1.2rem; font-size: 1rem; cursor: pointer; border-radius: 5px; border: none; background-color: #007bff; color: white; }
+  button:disabled { background-color: #999; cursor: not-allowed; }
+  #status { margin-top: 1rem; padding: 0.8rem; border-radius: 5px; min-height: 24px; }
+  .saldo { font-size: 1.2rem; margin: 0.3rem 0 0.8rem 0; }
 </style>
 </head>
 <body>
 
-  <!-- Valores principais -->
-  <div class="card">
-    <div class="card-title">Gás</div>
-    <div class="card-value" id="gasValue">--</div>
-  </div>
+<h1>WEbdEX Manager</h1>
 
-  <div class="card">
-    <div class="card-title">Poly</div>
-    <div class="card-value" id="polyValue">--</div>
-  </div>
+<div class="section">
+  <button id="connectWalletBtn">Conectar MetaMask</button>
+  <div id="walletAddress"></div>
+</div>
 
-  <div class="card">
-    <div class="card-title">WebdEX (Pass)</div>
-    <div class="card-value" id="webdexValue">--</div>
-  </div>
+<div class="section">
+  <h2>Saldos</h2>
+  <div><strong>Saldo Gás:</strong> <span id="gasBalance">-</span></div>
+  <div><strong>Saldo Pass (WebdEX):</strong> <span id="passBalance">-</span></div>
+  <div><strong>Saldo Liquidez:</strong> <span id="liquidityBalance">-</span></div>
+</div>
 
-  <div class="card">
-    <div class="card-title">Liquidez</div>
-    <div class="card-value" id="liquidezValue">--</div>
-  </div>
+<div class="section">
+  <h2>Adicionar/Remover Gás</h2>
+  <label for="gasAmount">Quantidade (wei):</label>
+  <input type="number" id="gasAmount" min="0" placeholder="Digite o valor" />
+  <button id="addGasBtn">Adicionar Gás</button>
+  <button id="removeGasBtn">Remover Gás</button>
+</div>
 
-  <div class="card">
-    <div class="card-title">Lucro Diário</div>
-    <div class="card-value" id="lucroDiarioValue">--</div>
-  </div>
+<div class="section">
+  <h2>Adicionar/Remover Pass (WebdEX)</h2>
+  <label for="passAmount">Quantidade (uint):</label>
+  <input type="number" id="passAmount" min="0" placeholder="Digite o valor" />
+  <button id="addPassBtn">Adicionar Pass</button>
+  <button id="removePassBtn">Remover Pass</button>
+</div>
 
-  <div class="card">
-    <div class="card-title">Lucro Semanal</div>
-    <div class="card-value" id="lucroSemanalValue">--</div>
-  </div>
+<div class="section">
+  <h2>Adicionar/Remover Liquidez</h2>
+  <label for="liquidityAmount">Quantidade (wei):</label>
+  <input type="number" id="liquidityAmount" min="0" placeholder="Digite o valor" />
+  <button id="addLiquidityBtn">Adicionar Liquidez</button>
+  <button id="removeLiquidityBtn">Remover Liquidez</button>
+</div>
 
-  <div class="card">
-    <div class="card-title">Lucro Mensal</div>
-    <div class="card-value" id="lucroMensalValue">--</div>
-  </div>
+<div class="section">
+  <h2>Outras Ações</h2>
+  <button id="pauseBtn">Pausar</button>
+  <button id="stopBtn">Parar</button>
+  <button id="rebalanceBtn">Rebalancear</button>
+</div>
 
-  <!-- Adicionar / Remover Gás -->
-  <div class="section">
-    <div class="section-title">Gás</div>
-    <div class="input-group">
-      <input type="number" id="inputGasAmount" placeholder="Quantidade" min="0" step="0.01" />
-    </div>
-    <div class="input-group" style="margin-top:12px;">
-      <button id="btnAddGas">Adicionar Gás</button>
-      <button id="btnRemoveGas">Remover Gás</button>
-    </div>
-  </div>
-
-  <!-- Adicionar / Remover Pass (WebdEX) -->
-  <div class="section">
-    <div class="section-title">WebdEX (Pass)</div>
-    <div class="input-group">
-      <input type="number" id="inputPassAmount" placeholder="Quantidade" min="0" step="0.01" />
-    </div>
-    <div class="input-group" style="margin-top:12px;">
-      <button id="btnAddPass">Adicionar Pass</button>
-      <button id="btnRemovePass">Remover Pass</button>
-    </div>
-  </div>
-
-  <!-- Remover Liquidez -->
-  <div class="section">
-    <div class="section-title">Liquidez</div>
-    <div class="input-group">
-      <input type="number" id="inputRemoveLiquidityAmount" placeholder="Quantidade para remover" min="0" step="0.01" />
-    </div>
-    <div class="input-group" style="margin-top:12px;">
-      <button id="btnRemoveLiquidity">Remover Liquidez</button>
-    </div>
-  </div>
-
-  <!-- Outras ações (exemplo) -->
-  <div class="section">
-    <div class="section-title">Ações</div>
-    <button id="btnCriarSubconta">Criar Subconta</button>
-    <button id="btnRebalancear">Rebalancear Cotas</button>
-    <button id="btnPausar">Pausar</button>
-    <button id="btnParar">Parar</button>
-  </div>
+<div id="status"></div>
 
 <script>
-  // Formatação para número BR
-  function formatarNumeroBR(num) {
-    if (typeof num !== "number") return "--";
-    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+  const contractABI = [
+    // ABI resumido com as funções citadas - ajuste conforme seu ABI completo
+    "function gasBalance() view returns (uint256)",
+    "function passBalance() view returns (uint256)",
+    "function liquidityBalance() view returns (uint256)",
+    "function gasAdd(uint256 amount) external",
+    "function gasRemove(uint256 amount) external",
+    "function passAdd(uint256 amount) external",
+    "function passRemove(uint256 amount) external",
+    "function liquidityAdd(uint256 amount) external",
+    "function liquidityRemove(uint256 amount) external",
+    "function pause() external",
+    "function stop() external",
+    "function rebalance() external"
+  ];
+
+  let provider;
+  let signer;
+  let contract;
+
+  const connectWalletBtn = document.getElementById("connectWalletBtn");
+  const walletAddressDiv = document.getElementById("walletAddress");
+  const statusDiv = document.getElementById("status");
+
+  const gasBalanceSpan = document.getElementById("gasBalance");
+  const passBalanceSpan = document.getElementById("passBalance");
+  const liquidityBalanceSpan = document.getElementById("liquidityBalance");
+
+  connectWalletBtn.onclick = async () => {
+    if (typeof window.ethereum === 'undefined') {
+      alert("MetaMask não detectado!");
+      return;
+    }
+    try {
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      signer = provider.getSigner();
+      contract = new ethers.Contract(contractAddress, contractABI, signer);
+
+      const address = await signer.getAddress();
+      walletAddressDiv.textContent = "Conectado: " + address;
+
+      statusDiv.textContent = "Carregando saldos...";
+      await atualizarSaldos();
+      statusDiv.textContent = "Saldos atualizados!";
+    } catch (error) {
+      console.error(error);
+      statusDiv.textContent = "Erro ao conectar MetaMask: " + error.message;
+    }
+  };
+
+  async function atualizarSaldos() {
+    try {
+      const gas = await contract.gasBalance();
+      const pass = await contract.passBalance();
+      const liquidity = await contract.liquidityBalance();
+
+      gasBalanceSpan.textContent = ethers.utils.formatUnits(gas, 18);
+      passBalanceSpan.textContent = pass.toString();
+      liquidityBalanceSpan.textContent = ethers.utils.formatUnits(liquidity, 18);
+    } catch (error) {
+      console.error(error);
+      statusDiv.textContent = "Erro ao buscar saldos: " + error.message;
+    }
   }
 
-  // Exemplo de dados fixos (para teste)
-  const dadosExemplo = {
-    gas: 123.45,
-    poly: 6789.01,
-    webdex: 2345.67,
-    liquidez: 987654.32,
-    lucroDiario: 1234.56,
-    lucroSemanal: 7890.12,
-    lucroMensal: 34567.89,
-  };
-
-  // Atualiza os valores na tela
-  function atualizarValores() {
-    document.getElementById('gasValue').textContent = formatarNumeroBR(dadosExemplo.gas);
-    document.getElementById('polyValue').textContent = formatarNumeroBR(dadosExemplo.poly);
-    document.getElementById('webdexValue').textContent = formatarNumeroBR(dadosExemplo.webdex);
-    document.getElementById('liquidezValue').textContent = formatarNumeroBR(dadosExemplo.liquidez);
-    document.getElementById('lucroDiarioValue').textContent = formatarNumeroBR(dadosExemplo.lucroDiario);
-    document.getElementById('lucroSemanalValue').textContent = formatarNumeroBR(dadosExemplo.lucroSemanal);
-    document.getElementById('lucroMensalValue').textContent = formatarNumeroBR(dadosExemplo.lucroMensal);
+  // Função auxiliar para executar transações
+  async function executarTx(funcName, amount) {
+    if (!contract) {
+      alert("Conecte a MetaMask primeiro.");
+      return;
+    }
+    try {
+      statusDiv.textContent = `Enviando transação ${funcName}...`;
+      let tx;
+      if(amount !== undefined) {
+        tx = await contract[funcName](amount);
+      } else {
+        tx = await contract[funcName]();
+      }
+      await tx.wait();
+      statusDiv.textContent = `${funcName} executado com sucesso! Atualizando saldos...`;
+      await atualizarSaldos();
+    } catch (error) {
+      console.error(error);
+      statusDiv.textContent = `Erro na transação ${funcName}: ${error.message}`;
+    }
   }
 
-  atualizarValores();
-
-  // Eventos para os botões (aqui você conecta as funções reais do contrato depois)
-  document.getElementById('btnAddGas').onclick = () => {
-    const amount = parseFloat(document.getElementById('inputGasAmount').value);
-    if (isNaN(amount) || amount <= 0) {
-      alert('Informe um valor válido para adicionar gás.');
-      return;
-    }
-    alert(`Adicionar Gás: ${amount}`);
-    // Aqui você chama função do contrato para adicionar gás
+  // Eventos dos botões de adicionar/remover com valor digitado
+  document.getElementById("addGasBtn").onclick = () => {
+    const val = document.getElementById("gasAmount").value;
+    if(!val || val <= 0) return alert("Digite um valor válido para Gás");
+    const amount = ethers.utils.parseUnits(val, 18);
+    executarTx("gasAdd", amount);
   };
 
-  document.getElementById('btnRemoveGas').onclick = () => {
-    const amount = parseFloat(document.getElementById('inputGasAmount').value);
-    if (isNaN(amount) || amount <= 0) {
-      alert('Informe um valor válido para remover gás.');
-      return;
-    }
-    alert(`Remover Gás: ${amount}`);
-    // Aqui você chama função do contrato para remover gás
+  document.getElementById("removeGasBtn").onclick = () => {
+    const val = document.getElementById("gasAmount").value;
+    if(!val || val <= 0) return alert("Digite um valor válido para Gás");
+    const amount = ethers.utils.parseUnits(val, 18);
+    executarTx("gasRemove", amount);
   };
 
-  document.getElementById('btnAddPass').onclick = () => {
-    const amount = parseFloat(document.getElementById('inputPassAmount').value);
-    if (isNaN(amount) || amount <= 0) {
-      alert('Informe um valor válido para adicionar Pass.');
-      return;
-    }
-    alert(`Adicionar Pass: ${amount}`);
-    // Aqui você chama função do contrato para adicionar pass
+  document.getElementById("addPassBtn").onclick = () => {
+    const val = document.getElementById("passAmount").value;
+    if(!val || val <= 0) return alert("Digite um valor válido para Pass");
+    const amount = ethers.BigNumber.from(val);
+    executarTx("passAdd", amount);
   };
 
-  document.getElementById('btnRemovePass').onclick = () => {
-    const amount = parseFloat(document.getElementById('inputPassAmount').value);
-    if (isNaN(amount) || amount <= 0) {
-      alert('Informe um valor válido para remover Pass.');
-      return;
-    }
-    alert(`Remover Pass: ${amount}`);
-    // Aqui você chama função do contrato para remover pass
+  document.getElementById("removePassBtn").onclick = () => {
+    const val = document.getElementById("passAmount").value;
+    if(!val || val <= 0) return alert("Digite um valor válido para Pass");
+    const amount = ethers.BigNumber.from(val);
+    executarTx("passRemove", amount);
   };
 
-  document.getElementById('btnRemoveLiquidity').onclick = () => {
-    const amount = parseFloat(document.getElementById('inputRemoveLiquidityAmount').value);
-    if (isNaN(amount) || amount <= 0) {
-      alert('Informe um valor válido para remover liquidez.');
-      return;
-    }
-    alert(`Remover Liquidez: ${amount}`);
-    // Aqui você chama função do contrato para remover liquidez
+  document.getElementById("addLiquidityBtn").onclick = () => {
+    const val = document.getElementById("liquidityAmount").value;
+    if(!val || val <= 0) return alert("Digite um valor válido para Liquidez");
+    const amount = ethers.utils.parseUnits(val, 18);
+    executarTx("liquidityAdd", amount);
   };
 
-  document.getElementById('btnCriarSubconta').onclick = () => {
-    alert('Criar Subconta (função placeholder)');
-    // Aqui você chama função do contrato para criar subconta
+  document.getElementById("removeLiquidityBtn").onclick = () => {
+    const val = document.getElementById("liquidityAmount").value;
+    if(!val || val <= 0) return alert("Digite um valor válido para Liquidez");
+    const amount = ethers.utils.parseUnits(val, 18);
+    executarTx("liquidityRemove", amount);
   };
 
-  document.getElementById('btnRebalancear').onclick = () => {
-    alert('Rebalancear Cotas (função placeholder)');
-    // Aqui você chama função do contrato para rebalancear cotas
-  };
-
-  document.getElementById('btnPausar').onclick = () => {
-    alert('Pausar (função placeholder)');
-    // Aqui você chama função do contrato para pausar
-  };
-
-  document.getElementById('btnParar').onclick = () => {
-    alert('Parar (função placeholder)');
-    // Aqui você chama função do contrato para parar
-  };
+  // Botões pausar, parar, rebalancear
+  document.getElementById("pauseBtn").onclick = () => executarTx("pause");
+  document.getElementById("stopBtn").onclick = () => executarTx("stop");
+  document.getElementById("rebalanceBtn").onclick = () => executarTx("rebalance");
 </script>
 
 </body>
