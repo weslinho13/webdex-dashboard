@@ -1,99 +1,105 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WEbdEX - Saldo Básico</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 400px; margin: 20px auto; }
-    h1 { text-align: center; }
-    .saldo { border: 1px solid #ccc; padding: 12px; margin: 12px 0; border-radius: 6px; }
-    .label { font-weight: bold; }
-    #connectBtn { display: block; margin: 20px auto; padding: 10px 20px; font-size: 16px; cursor: pointer; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Interface WEbdEX Manager V4 - Mobile MetaMask</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+  h1 { color: #333; }
+  #connectBtn { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+  .balance-box { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
+  .balance-label { font-weight: bold; margin-bottom: 6px; color: #444; }
+  .balance-value { font-size: 24px; color: #2d862d; }
+  #status { margin-top: 10px; color: #888; }
+</style>
 </head>
 <body>
-  <h1>WEbdEX - Saldos Básicos</h1>
-  <button id="connectBtn">Conectar MetaMask</button>
 
-  <div id="walletAddress" style="text-align:center; font-weight:bold; margin-top: 10px;"></div>
+<h1>WEbdEX Manager V4</h1>
 
-  <div class="saldo"><span class="label">Liquidez Total:</span> <span id="liquidez">-</span></div>
-  <div class="saldo"><span class="label">Gás Disponível:</span> <span id="gas">-</span></div>
-  <div class="saldo"><span class="label">Pass (WebdEX):</span> <span id="pass">-</span></div>
-  <div class="saldo"><span class="label">Ganhos Diários:</span> <span id="ganhosDiarios">-</span></div>
-  <div class="saldo"><span class="label">Ganhos Semanais:</span> <span id="ganhosSemanais">-</span></div>
-  <div class="saldo"><span class="label">Ganhos Mensais:</span> <span id="ganhosMensais">-</span></div>
+<button id="connectBtn">Conectar MetaMask</button>
+<div id="status">Status: Não conectado</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
-  <script>
-    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-    const contractABI = [
-      "function liquidityTotal() view returns (uint256)",
-      "function gasTotal() view returns (uint256)",
-      "function passTotal() view returns (uint256)",
-      "function getGanhosDiarios() view returns (uint256)",
-      "function getGanhosSemanais() view returns (uint256)",
-      "function getGanhosMensais() view returns (uint256)"
-    ];
+<div class="balance-box">
+  <div class="balance-label">Liquidez</div>
+  <div id="liquidez" class="balance-value">--</div>
+</div>
 
-    let provider, signer, contract;
+<div class="balance-box">
+  <div class="balance-label">Gás</div>
+  <div id="gas" class="balance-value">--</div>
+</div>
 
-    const connectBtn = document.getElementById("connectBtn");
-    const walletAddressDiv = document.getElementById("walletAddress");
+<div class="balance-box">
+  <div class="balance-label">Pass (WebdEX)</div>
+  <div id="pass" class="balance-value">--</div>
+</div>
 
-    const liquidezSpan = document.getElementById("liquidez");
-    const gasSpan = document.getElementById("gas");
-    const passSpan = document.getElementById("pass");
-    const ganhosDiariosSpan = document.getElementById("ganhosDiarios");
-    const ganhosSemanaisSpan = document.getElementById("ganhosSemanais");
-    const ganhosMensaisSpan = document.getElementById("ganhosMensais");
+<div class="balance-box">
+  <div class="balance-label">Ganhos Diários</div>
+  <div id="ganhosDiarios" class="balance-value">--</div>
+</div>
 
-    async function connect() {
-      if (typeof window.ethereum === "undefined") {
-        alert("MetaMask não detectada!");
-        return;
-      }
-      try {
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        signer = provider.getSigner();
-        contract = new ethers.Contract(contractAddress, contractABI, provider);
-        const address = await signer.getAddress();
-        walletAddressDiv.textContent = "Conectado: " + address;
-        await updateSaldos();
-      } catch (err) {
-        alert("Erro na conexão: " + err.message);
-      }
+<div class="balance-box">
+  <div class="balance-label">Ganhos Semanais</div>
+  <div id="ganhosSemanais" class="balance-value">--</div>
+</div>
+
+<div class="balance-box">
+  <div class="balance-label">Ganhos Mensais</div>
+  <div id="ganhosMensais" class="balance-value">--</div>
+</div>
+
+<script>
+  const connectBtn = document.getElementById('connectBtn');
+  const statusDiv = document.getElementById('status');
+  const liquidezEl = document.getElementById('liquidez');
+  const gasEl = document.getElementById('gas');
+  const passEl = document.getElementById('pass');
+  const ganhosDiariosEl = document.getElementById('ganhosDiarios');
+  const ganhosSemanaisEl = document.getElementById('ganhosSemanais');
+  const ganhosMensaisEl = document.getElementById('ganhosMensais');
+
+  let provider;
+  let userAddress;
+
+  async function connectMetaMask() {
+    if (typeof window.ethereum === 'undefined') {
+      alert('MetaMask não encontrada! Instale a MetaMask para continuar.');
+      return;
     }
 
-    async function updateSaldos() {
-      try {
-        const liquidez = await contract.liquidityTotal();
-        liquidezSpan.textContent = ethers.utils.formatEther(liquidez) + " ETH";
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      userAddress = accounts[0];
+      statusDiv.textContent = `Conectado: ${userAddress.substring(0,6)}...${userAddress.slice(-4)}`;
+      connectBtn.style.display = 'none';
 
-        const gas = await contract.gasTotal();
-        gasSpan.textContent = ethers.utils.formatEther(gas) + " ETH";
-
-        const pass = await contract.passTotal();
-        passSpan.textContent = ethers.utils.formatEther(pass) + " Pass";
-
-        const ganhosDiarios = await contract.getGanhosDiarios();
-        ganhosDiariosSpan.textContent = ethers.utils.formatEther(ganhosDiarios) + " ETH";
-
-        const ganhosSemanais = await contract.getGanhosSemanais();
-        ganhosSemanaisSpan.textContent = ethers.utils.formatEther(ganhosSemanais) + " ETH";
-
-        const ganhosMensais = await contract.getGanhosMensais();
-        ganhosMensaisSpan.textContent = ethers.utils.formatEther(ganhosMensais) + " ETH";
-
-      } catch (err) {
-        console.error(err);
-        alert("Erro ao buscar saldos: " + err.message);
-      }
+      // Aqui pode iniciar as chamadas ao contrato real depois
+      await carregarDados();
+    } catch (err) {
+      alert('Conexão cancelada ou falhou: ' + err.message);
     }
+  }
 
-    connectBtn.onclick = connect;
-  </script>
+  async function carregarDados() {
+    // AQUI você conecta com o contrato real, por exemplo via ethers.js ou web3.js
+    // Como exemplo, valores simulados são usados para testar a interface
+
+    // Simulação de delay para "carregar" os dados
+    await new Promise(r => setTimeout(r, 500));
+
+    liquidezEl.textContent = "1500.25 MATIC";
+    gasEl.textContent = "75.45 MATIC";
+    passEl.textContent = "1200 Pass";
+    ganhosDiariosEl.textContent = "35.60 MATIC";
+    ganhosSemanaisEl.textContent = "250.00 MATIC";
+    ganhosMensaisEl.textContent = "950.75 MATIC";
+  }
+
+  connectBtn.onclick = connectMetaMask;
+</script>
+
 </body>
 </html>
