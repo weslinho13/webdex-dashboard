@@ -3,102 +3,41 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Interface WEbdEX Manager V4 - Mobile MetaMask</title>
+<title>MetaMask Mobile Connect Test</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-  h1 { color: #333; }
-  #connectBtn { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-  .balance-box { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
-  .balance-label { font-weight: bold; margin-bottom: 6px; color: #444; }
-  .balance-value { font-size: 24px; color: #2d862d; }
-  #status { margin-top: 10px; color: #888; }
+  body { font-family: Arial, sans-serif; padding: 20px; background: #fafafa; }
+  #connectBtn { font-size: 18px; padding: 12px 20px; cursor: pointer; }
+  #status { margin-top: 15px; font-weight: bold; color: #333; }
 </style>
 </head>
 <body>
 
-<h1>WEbdEX Manager V4</h1>
-
+<h2>Teste conexão MetaMask Mobile Browser</h2>
 <button id="connectBtn">Conectar MetaMask</button>
 <div id="status">Status: Não conectado</div>
 
-<div class="balance-box">
-  <div class="balance-label">Liquidez</div>
-  <div id="liquidez" class="balance-value">--</div>
-</div>
-
-<div class="balance-box">
-  <div class="balance-label">Gás</div>
-  <div id="gas" class="balance-value">--</div>
-</div>
-
-<div class="balance-box">
-  <div class="balance-label">Pass (WebdEX)</div>
-  <div id="pass" class="balance-value">--</div>
-</div>
-
-<div class="balance-box">
-  <div class="balance-label">Ganhos Diários</div>
-  <div id="ganhosDiarios" class="balance-value">--</div>
-</div>
-
-<div class="balance-box">
-  <div class="balance-label">Ganhos Semanais</div>
-  <div id="ganhosSemanais" class="balance-value">--</div>
-</div>
-
-<div class="balance-box">
-  <div class="balance-label">Ganhos Mensais</div>
-  <div id="ganhosMensais" class="balance-value">--</div>
-</div>
-
 <script>
   const connectBtn = document.getElementById('connectBtn');
-  const statusDiv = document.getElementById('status');
-  const liquidezEl = document.getElementById('liquidez');
-  const gasEl = document.getElementById('gas');
-  const passEl = document.getElementById('pass');
-  const ganhosDiariosEl = document.getElementById('ganhosDiarios');
-  const ganhosSemanaisEl = document.getElementById('ganhosSemanais');
-  const ganhosMensaisEl = document.getElementById('ganhosMensais');
+  const status = document.getElementById('status');
 
-  let provider;
-  let userAddress;
-
-  async function connectMetaMask() {
+  connectBtn.addEventListener('click', async () => {
     if (typeof window.ethereum === 'undefined') {
-      alert('MetaMask não encontrada! Instale a MetaMask para continuar.');
+      status.textContent = 'MetaMask não detectada. Instale ou abra no app MetaMask.';
       return;
     }
 
     try {
+      // Peça permissão para conectar à carteira MetaMask
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      userAddress = accounts[0];
-      statusDiv.textContent = `Conectado: ${userAddress.substring(0,6)}...${userAddress.slice(-4)}`;
+      const account = accounts[0];
+      status.textContent = `Conectado: ${account.substring(0,6)}...${account.slice(-4)}`;
       connectBtn.style.display = 'none';
 
-      // Aqui pode iniciar as chamadas ao contrato real depois
-      await carregarDados();
+      // Você pode colocar aqui a lógica para carregar dados do contrato
     } catch (err) {
-      alert('Conexão cancelada ou falhou: ' + err.message);
+      status.textContent = 'Erro na conexão: ' + (err.message || err);
     }
-  }
-
-  async function carregarDados() {
-    // AQUI você conecta com o contrato real, por exemplo via ethers.js ou web3.js
-    // Como exemplo, valores simulados são usados para testar a interface
-
-    // Simulação de delay para "carregar" os dados
-    await new Promise(r => setTimeout(r, 500));
-
-    liquidezEl.textContent = "1500.25 MATIC";
-    gasEl.textContent = "75.45 MATIC";
-    passEl.textContent = "1200 Pass";
-    ganhosDiariosEl.textContent = "35.60 MATIC";
-    ganhosSemanaisEl.textContent = "250.00 MATIC";
-    ganhosMensaisEl.textContent = "950.75 MATIC";
-  }
-
-  connectBtn.onclick = connectMetaMask;
+  });
 </script>
 
 </body>
