@@ -3,149 +3,275 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dashboard WEbdEX</title>
-<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+<title>Dashboard WEbdEX - Completo</title>
 <style>
-  body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6f8; color: #333; }
-  h1 { margin-bottom: 20px; }
-  .balance-box { background: white; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 6px #ccc; }
-  #lastUpdate { font-size: 0.9em; color: #555; }
-  button { padding: 10px 15px; border:none; background: #2b8a3e; color: white; border-radius: 4px; cursor:pointer; }
-  button:disabled { background: #888; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #f7f7f7;
+    margin: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px;
+  }
+
+  .card {
+    background: white;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    padding: 25px 40px;
+    text-align: center;
+    max-width: 320px;
+    width: 90%;
+  }
+
+  .card-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: #333;
+  }
+
+  .card-value {
+    font-size: 44px;
+    font-weight: 900;
+    color: #4caf50;
+  }
+
+  button {
+    margin-top: 12px;
+    padding: 10px 18px;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    background-color: #4caf50;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  button:hover {
+    background-color: #388e3c;
+  }
+
+  .section {
+    background: white;
+    box-shadow: 0 0 6px rgba(0,0,0,0.08);
+    border-radius: 10px;
+    padding: 20px 30px;
+    max-width: 350px;
+    width: 90%;
+  }
+
+  .section-title {
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 14px;
+    color: #222;
+  }
+
+  .input-group {
+    margin-top: 8px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  input[type="number"] {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+
 </style>
 </head>
 <body>
 
-<h1>Dashboard WEbdEX</h1>
+  <!-- Valores principais -->
+  <div class="card">
+    <div class="card-title">Gás</div>
+    <div class="card-value" id="gasValue">--</div>
+  </div>
 
-<div class="balance-box">
-  <strong>Saldo Gás (MATIC):</strong> <span id="gasBalance">-</span>
-</div>
+  <div class="card">
+    <div class="card-title">Poly</div>
+    <div class="card-value" id="polyValue">--</div>
+  </div>
 
-<div class="balance-box">
-  <strong>Saldo WebdEX:</strong> <span id="webdexBalance">-</span>
-</div>
+  <div class="card">
+    <div class="card-title">WebdEX (Pass)</div>
+    <div class="card-value" id="webdexValue">--</div>
+  </div>
 
-<div class="balance-box">
-  <strong>Liquidez Total:</strong> <span id="liquidityBalance">-</span>
-</div>
+  <div class="card">
+    <div class="card-title">Liquidez</div>
+    <div class="card-value" id="liquidezValue">--</div>
+  </div>
 
-<div class="balance-box">
-  <strong>Balanço Diário / Semanal / Mensal:</strong><br />
-  <ul>
-    <li>Diário: <span id="balanceDaily">-</span></li>
-    <li>Semanal: <span id="balanceWeekly">-</span></li>
-    <li>Mensal: <span id="balanceMonthly">-</span></li>
-  </ul>
-</div>
+  <div class="card">
+    <div class="card-title">Lucro Diário</div>
+    <div class="card-value" id="lucroDiarioValue">--</div>
+  </div>
 
-<div id="lastUpdate">Última atualização: -</div>
+  <div class="card">
+    <div class="card-title">Lucro Semanal</div>
+    <div class="card-value" id="lucroSemanalValue">--</div>
+  </div>
 
-<button id="btnManualUpdate">Atualizar Agora</button>
+  <div class="card">
+    <div class="card-title">Lucro Mensal</div>
+    <div class="card-value" id="lucroMensalValue">--</div>
+  </div>
+
+  <!-- Adicionar / Remover Gás -->
+  <div class="section">
+    <div class="section-title">Gás</div>
+    <div class="input-group">
+      <input type="number" id="inputGasAmount" placeholder="Quantidade" min="0" step="0.01" />
+    </div>
+    <div class="input-group" style="margin-top:12px;">
+      <button id="btnAddGas">Adicionar Gás</button>
+      <button id="btnRemoveGas">Remover Gás</button>
+    </div>
+  </div>
+
+  <!-- Adicionar / Remover Pass (WebdEX) -->
+  <div class="section">
+    <div class="section-title">WebdEX (Pass)</div>
+    <div class="input-group">
+      <input type="number" id="inputPassAmount" placeholder="Quantidade" min="0" step="0.01" />
+    </div>
+    <div class="input-group" style="margin-top:12px;">
+      <button id="btnAddPass">Adicionar Pass</button>
+      <button id="btnRemovePass">Remover Pass</button>
+    </div>
+  </div>
+
+  <!-- Remover Liquidez -->
+  <div class="section">
+    <div class="section-title">Liquidez</div>
+    <div class="input-group">
+      <input type="number" id="inputRemoveLiquidityAmount" placeholder="Quantidade para remover" min="0" step="0.01" />
+    </div>
+    <div class="input-group" style="margin-top:12px;">
+      <button id="btnRemoveLiquidity">Remover Liquidez</button>
+    </div>
+  </div>
+
+  <!-- Outras ações (exemplo) -->
+  <div class="section">
+    <div class="section-title">Ações</div>
+    <button id="btnCriarSubconta">Criar Subconta</button>
+    <button id="btnRebalancear">Rebalancear Cotas</button>
+    <button id="btnPausar">Pausar</button>
+    <button id="btnParar">Parar</button>
+  </div>
 
 <script>
-// Endereço do contrato e ABI (substituir pelos seus reais)
-const WEbdEXManagerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-const WEbdEXManagerABI = [
-  // Coloque aqui o ABI completo do contrato com as funções necessárias
-  "function getGasBalance(address user) view returns (uint256)",
-  "function getWebdexBalance(address user) view returns (uint256)",
-  "function getLiquidityBalance(address user) view returns (uint256)",
-  "function getBalanceDaily(address user) view returns (int256)",
-  "function getBalanceWeekly(address user) view returns (int256)",
-  "function getBalanceMonthly(address user) view returns (int256)"
-];
+  // Formatação para número BR
+  function formatarNumeroBR(num) {
+    if (typeof num !== "number") return "--";
+    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
 
-let provider;
-let signer;
-let contract;
-let userAddress;
+  // Exemplo de dados fixos (para teste)
+  const dadosExemplo = {
+    gas: 123.45,
+    poly: 6789.01,
+    webdex: 2345.67,
+    liquidez: 987654.32,
+    lucroDiario: 1234.56,
+    lucroSemanal: 7890.12,
+    lucroMensal: 34567.89,
+  };
 
-async function connectWallet() {
-  if (window.ethereum) {
-    try {
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-      provider = new ethers.providers.Web3Provider(window.ethereum);
-      signer = provider.getSigner();
-      userAddress = await signer.getAddress();
-      contract = new ethers.Contract(WEbdEXManagerAddress, WEbdEXManagerABI, provider);
-      updateAllBalances();
-      setInterval(updateAllBalances, 15000); // Atualiza a cada 15s
-      setInterval(checkIf8PM, 60000); // Checa a cada 1 min se é 20h para atualizar gráficos
-    } catch (err) {
-      alert("Erro ao conectar carteira: " + err.message);
+  // Atualiza os valores na tela
+  function atualizarValores() {
+    document.getElementById('gasValue').textContent = formatarNumeroBR(dadosExemplo.gas);
+    document.getElementById('polyValue').textContent = formatarNumeroBR(dadosExemplo.poly);
+    document.getElementById('webdexValue').textContent = formatarNumeroBR(dadosExemplo.webdex);
+    document.getElementById('liquidezValue').textContent = formatarNumeroBR(dadosExemplo.liquidez);
+    document.getElementById('lucroDiarioValue').textContent = formatarNumeroBR(dadosExemplo.lucroDiario);
+    document.getElementById('lucroSemanalValue').textContent = formatarNumeroBR(dadosExemplo.lucroSemanal);
+    document.getElementById('lucroMensalValue').textContent = formatarNumeroBR(dadosExemplo.lucroMensal);
+  }
+
+  atualizarValores();
+
+  // Eventos para os botões (aqui você conecta as funções reais do contrato depois)
+  document.getElementById('btnAddGas').onclick = () => {
+    const amount = parseFloat(document.getElementById('inputGasAmount').value);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Informe um valor válido para adicionar gás.');
+      return;
     }
-  } else {
-    alert("Por favor instale MetaMask!");
-  }
-}
+    alert(`Adicionar Gás: ${amount}`);
+    // Aqui você chama função do contrato para adicionar gás
+  };
 
-async function updateAllBalances() {
-  if (!contract || !userAddress) return;
-  try {
-    const gasRaw = await provider.getBalance(userAddress);
-    const gasBalance = ethers.utils.formatEther(gasRaw);
-    document.getElementById("gasBalance").textContent = Number(gasBalance).toFixed(4) + " MATIC";
+  document.getElementById('btnRemoveGas').onclick = () => {
+    const amount = parseFloat(document.getElementById('inputGasAmount').value);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Informe um valor válido para remover gás.');
+      return;
+    }
+    alert(`Remover Gás: ${amount}`);
+    // Aqui você chama função do contrato para remover gás
+  };
 
-    const webdexRaw = await contract.getWebdexBalance(userAddress);
-    const webdexBalance = ethers.utils.formatEther(webdexRaw);
-    document.getElementById("webdexBalance").textContent = Number(webdexBalance).toFixed(4) + " WebdEX";
+  document.getElementById('btnAddPass').onclick = () => {
+    const amount = parseFloat(document.getElementById('inputPassAmount').value);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Informe um valor válido para adicionar Pass.');
+      return;
+    }
+    alert(`Adicionar Pass: ${amount}`);
+    // Aqui você chama função do contrato para adicionar pass
+  };
 
-    const liquidityRaw = await contract.getLiquidityBalance(userAddress);
-    const liquidityBalance = ethers.utils.formatEther(liquidityRaw);
-    document.getElementById("liquidityBalance").textContent = Number(liquidityBalance).toFixed(4);
+  document.getElementById('btnRemovePass').onclick = () => {
+    const amount = parseFloat(document.getElementById('inputPassAmount').value);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Informe um valor válido para remover Pass.');
+      return;
+    }
+    alert(`Remover Pass: ${amount}`);
+    // Aqui você chama função do contrato para remover pass
+  };
 
-    // Balanços (podem ser negativos, por isso int256)
-    const dailyRaw = await contract.getBalanceDaily(userAddress);
-    const weeklyRaw = await contract.getBalanceWeekly(userAddress);
-    const monthlyRaw = await contract.getBalanceMonthly(userAddress);
+  document.getElementById('btnRemoveLiquidity').onclick = () => {
+    const amount = parseFloat(document.getElementById('inputRemoveLiquidityAmount').value);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Informe um valor válido para remover liquidez.');
+      return;
+    }
+    alert(`Remover Liquidez: ${amount}`);
+    // Aqui você chama função do contrato para remover liquidez
+  };
 
-    document.getElementById("balanceDaily").textContent = formatBalance(dailyRaw);
-    document.getElementById("balanceWeekly").textContent = formatBalance(weeklyRaw);
-    document.getElementById("balanceMonthly").textContent = formatBalance(monthlyRaw);
+  document.getElementById('btnCriarSubconta').onclick = () => {
+    alert('Criar Subconta (função placeholder)');
+    // Aqui você chama função do contrato para criar subconta
+  };
 
-    updateLastUpdateTime();
-  } catch (err) {
-    console.error("Erro ao atualizar saldos:", err);
-  }
-}
+  document.getElementById('btnRebalancear').onclick = () => {
+    alert('Rebalancear Cotas (função placeholder)');
+    // Aqui você chama função do contrato para rebalancear cotas
+  };
 
-function formatBalance(raw) {
-  // raw pode ser BigNumber ou Number, converter para número com 2 casas
-  try {
-    const num = Number(ethers.utils.formatEther(raw));
-    return (num >= 0 ? "+" : "") + num.toFixed(2);
-  } catch {
-    return "-";
-  }
-}
+  document.getElementById('btnPausar').onclick = () => {
+    alert('Pausar (função placeholder)');
+    // Aqui você chama função do contrato para pausar
+  };
 
-function updateLastUpdateTime() {
-  const now = new Date();
-  document.getElementById("lastUpdate").textContent = "Última atualização: " + now.toLocaleString();
-}
-
-function checkIf8PM() {
-  const now = new Date();
-  if (now.getHours() === 20 && now.getMinutes() === 0) {
-    updateBalanceCharts();
-  }
-}
-
-// Função mock para atualizar gráficos (você pode implementar com biblioteca Chart.js ou outra)
-function updateBalanceCharts() {
-  console.log("Atualizando gráficos às 20h...");
-  // TODO: implemente gráficos reais
-}
-
-// Botão atualização manual
-document.getElementById("btnManualUpdate").addEventListener("click", () => {
-  updateAllBalances();
-});
-
-// Conecta ao abrir página
-connectWallet();
-
+  document.getElementById('btnParar').onclick = () => {
+    alert('Parar (função placeholder)');
+    // Aqui você chama função do contrato para parar
+  };
 </script>
+
 </body>
 </html>
