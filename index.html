@@ -1,115 +1,99 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard WEbdEX</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WEbdEX Dashboard</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #0f172a;
-      color: #f1f5f9;
+      background-color: #0c0c0c;
+      color: #fff;
+      margin: 0;
       padding: 20px;
+      text-align: center;
     }
+
     .container {
       max-width: 500px;
       margin: auto;
+      padding: 20px;
+      background-color: #1a1a1a;
+      border-radius: 15px;
+      box-shadow: 0 0 20px #00ffc3;
     }
-    .card {
-      background-color: #1e293b;
-      padding: 15px;
-      margin-bottom: 15px;
-      border-radius: 10px;
+
+    h1 {
+      color: #00ffc3;
+      margin-bottom: 30px;
     }
-    .btn {
-      background-color: #3b82f6;
-      color: white;
-      padding: 10px;
+
+    button {
+      background-color: #00ffc3;
+      color: #000;
       border: none;
-      border-radius: 5px;
+      padding: 15px 25px;
+      font-size: 16px;
+      border-radius: 10px;
       cursor: pointer;
+      margin-top: 20px;
+      transition: background 0.3s;
     }
-    .btn:hover {
-      background-color: #2563eb;
+
+    button:hover {
+      background-color: #00bfa1;
+    }
+
+    #walletAddress {
+      margin-top: 20px;
+      font-size: 16px;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Dashboard WEbdEX</h1>
-    <div class="card">
-      <button class="btn" onclick="connectWallet()">Conectar Carteira</button>
-      <p id="walletAddress">Carteira: -</p>
-    </div>
+    <h1>🧠 WEbdEX Dashboard</h1>
 
-    <div class="card">
-      <h3>Saldo de Gás</h3>
-      <p id="gasBalance">Carregando...</p>
-    </div>
-
-    <div class="card">
-      <h3>Liquidez Total</h3>
-      <p id="liquidity">Carregando...</p>
-    </div>
-
-    <div class="card">
-      <h3>Saldo de PASS</h3>
-      <p id="passBalance">Carregando...</p>
-    </div>
+    <button id="connectButton">Conectar Carteira</button>
+    <div id="walletAddress"></div>
   </div>
 
   <script>
-    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0"; // WEbdEXManagerV4
-
-    const abi = [
-      {
-        "inputs": [{ "internalType": "address", "name": "bot", "type": "address" }],
-        "name": "getBotInfo",
-        "outputs": [
-          { "internalType": "uint256", "name": "gasAmount", "type": "uint256" },
-          { "internalType": "uint256", "name": "passAmount", "type": "uint256" },
-          { "internalType": "address", "name": "tokenLiquidity", "type": "address" },
-          { "internalType": "address", "name": "tokenProfit", "type": "address" },
-          { "internalType": "uint256", "name": "totalLiquidity", "type": "uint256" },
-          { "internalType": "uint256", "name": "dailyProfit", "type": "uint256" },
-          { "internalType": "uint256", "name": "weeklyProfit", "type": "uint256" },
-          { "internalType": "uint256", "name": "monthlyProfit", "type": "uint256" }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      }
-    ];
-
-    let provider;
-    let signer;
-    let contract;
+    const connectButton = document.getElementById('connectButton');
+    const walletAddress = document.getElementById('walletAddress');
+    let currentAccount = null;
 
     async function connectWallet() {
-      if (window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          const address = accounts[0];
-          document.getElementById("walletAddress").innerText = "Carteira: " + address;
+      if (typeof window.ethereum === 'undefined') {
+        alert('MetaMask não encontrada! Use o navegador da carteira ou instale o MetaMask.');
+        return;
+      }
 
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          signer = provider.getSigner();
-          contract = new ethers.Contract(contractAddress, abi, provider);
-
-          updateStatus(address);
-        } catch (err) {
-          alert("Erro ao conectar: " + err.message);
-        }
-      } else {
-        alert("MetaMask não detectada.");
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        currentAccount = accounts[0];
+        walletAddress.innerText = `Carteira conectada: ${currentAccount}`;
+        connectButton.innerText = 'Desconectar Carteira';
+      } catch (error) {
+        console.error('Erro ao conectar:', error);
+        alert('Erro ao conectar à MetaMask');
       }
     }
 
-    async function updateStatus(address) {
-      try {
-        const data = await contract.getBotInfo(address);
-        document.getElementById("gasBalance").innerText = `${ethers.utils.formatEther(data.gasAmount)} MATIC`;
-        document.getElementById("passBalance").innerText = `${ethers.utils.formatUnits(data.passAmount, 18)} PASS`;
-        document.getElementById("liquidity").innerText = `${ethers.utils.formatEther(data.totalLiquidity)} MATIC`;
-      } catch (err) {
-        co
+    function disconnectWallet() {
+      currentAccount = null;
+      walletAddress.innerText = '';
+      connectButton.innerText = 'Conectar Carteira';
+    }
+
+    connectButton.addEventListener('click', () => {
+      if (currentAccount) {
+        disconnectWallet();
+      } else {
+        connectWallet();
+      }
+    });
+  </script>
+</body>
+</html>
