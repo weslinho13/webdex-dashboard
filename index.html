@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>WebdEX Dashboard</title>
+  <title>WebdEX Painel</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
@@ -15,20 +15,16 @@
     <button id="connectButton" class="mb-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
       Conectar Carteira
     </button>
-    <p id="walletAddress" class="text-sm text-gray-600 mb-4"></p>
+    <p id="walletAddress" class="text-sm text-gray-600 mb-4">Carteira não conectada</p>
 
     <div class="p-4 bg-gray-50 rounded-xl shadow text-center">
       <h2 class="text-xl font-bold mb-2">Saldo de Gás</h2>
-      <p id="gasBalance" class="text-lg text-gray-800">Carregando...</p>
+      <p id="gasBalance" class="text-lg text-gray-800">Aguardando conexão...</p>
     </div>
   </div>
 
   <script>
-    let provider;
-    let signer;
-    let contract;
-
-    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0"; // WEbdEXManagerV4
+    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
     const abi = [
       {
         "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
@@ -36,4 +32,57 @@
         "outputs": [
           { "internalType": "bool", "name": "isActive", "type": "bool" },
           { "internalType": "address", "name": "owner", "type": "address" },
-          { "internalType": "uint256", "name": "gasAmount",
+          { "internalType": "uint256", "name": "gasAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "liquidity", "type": "uint256" },
+          { "internalType": "uint256", "name": "passAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "webdexAmount", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+
+    let provider;
+    let signer;
+    let contract;
+
+    async function connectWallet() {
+      try {
+        if (!window.ethereum) {
+          alert("MetaMask não encontrada. Acesse via navegador da MetaMask.");
+          return;
+        }
+
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const address = await signer.getAddress();
+
+        document.getElementById("walletAddress").innerText = `Conectado: ${address.slice(0, 6)}...${address.slice(-4)}`;
+
+        contract = new ethers.Contract(contractAddress, abi, signer);
+
+        await updateGasBalance(address);
+      } catch (error) {
+        console.error("Erro ao conectar carteira:", error);
+        alert("Erro ao conectar: veja o console.");
+      }
+    }
+
+    async function updateGasBalance(userAddress) {
+      try {
+        const botInfo = await contract.getBotInfo(userAddress);
+        const gas = ethers.utils.formatUnits(botInfo.gasAmount, 18);
+        const formattedGas = parseFloat(gas).toFixed(3);
+        document.getElementById("gasBalance").innerText = `${formattedGas} MATIC`;
+      } catch (error) {
+        console.error("Erro ao buscar saldo de gás:", error);
+        document.getElementById("gasBalance").innerText = "Erro ao buscar saldo.";
+      }
+    }
+
+    document.getElementById("connectButton").addEventListener("click", connectWallet);
+  </script>
+
+</body>
+</html>
