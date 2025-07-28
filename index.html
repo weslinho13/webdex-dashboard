@@ -1,88 +1,124 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>WebdEX Painel</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>Dashboard WebdEX</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    #walletAddress {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .card {
+      background: #1e293b;
+      margin: 20px auto;
+      padding: 20px;
+      border-radius: 12px;
+      width: 80%;
+      max-width: 400px;
+    }
+    .label {
+      font-size: 1.2em;
+      color: #a3e635;
+    }
+    .value {
+      font-size: 1.8em;
+      margin-top: 5px;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-900">
+<body>
+  <h1>Dashboard WebdEX</h1>
+  <button id="connectButton">Conectar Carteira</button>
+  <div id="walletAddress"></div>
 
-  <div class="max-w-md mx-auto p-4 mt-10 bg-white rounded-xl shadow-lg text-center">
-    <h1 class="text-2xl font-bold mb-4">WebdEX Painel</h1>
-
-    <button id="connectButton" class="mb-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
-      Conectar Carteira
-    </button>
-    <p id="walletAddress" class="text-sm text-gray-600 mb-4">Carteira não conectada</p>
-
-    <div class="p-4 bg-gray-50 rounded-xl shadow text-center">
-      <h2 class="text-xl font-bold mb-2">Saldo de Gás</h2>
-      <p id="gasBalance" class="text-lg text-gray-800">Aguardando conexão...</p>
-    </div>
+  <div class="card">
+    <div class="label">Saldo de Gás</div>
+    <div class="value" id="gasBalance">-</div>
   </div>
 
   <script>
-    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0"; // WEbdEXManagerV4 na Polygon
+
     const abi = [
       {
-        "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
+        "inputs": [{"internalType": "address","name": "_addr","type": "address"}],
         "name": "getBotInfo",
         "outputs": [
-          { "internalType": "bool", "name": "isActive", "type": "bool" },
-          { "internalType": "address", "name": "owner", "type": "address" },
-          { "internalType": "uint256", "name": "gasAmount", "type": "uint256" },
-          { "internalType": "uint256", "name": "liquidity", "type": "uint256" },
-          { "internalType": "uint256", "name": "passAmount", "type": "uint256" },
-          { "internalType": "uint256", "name": "webdexAmount", "type": "uint256" }
+          {
+            "components": [
+              {"internalType": "uint256","name": "gasAmount","type": "uint256"},
+              {"internalType": "uint256","name": "passAmount","type": "uint256"},
+              {"internalType": "address","name": "pairAddress","type": "address"},
+              {"internalType": "address","name": "token0","type": "address"},
+              {"internalType": "address","name": "token1","type": "address"},
+              {"internalType": "uint256","name": "liquidity","type": "uint256"},
+              {"internalType": "uint256","name": "lastOperation","type": "uint256"}
+            ],
+            "internalType": "struct WEbdEXManagerV4.BotInfo",
+            "name": "",
+            "type": "tuple"
+          }
         ],
         "stateMutability": "view",
         "type": "function"
       }
     ];
 
-    let provider;
-    let signer;
-    let contract;
+    let provider, signer, contract;
 
     async function connectWallet() {
       try {
         if (!window.ethereum) {
-          alert("MetaMask não encontrada. Acesse via navegador da MetaMask.");
+          alert("MetaMask não encontrada!");
           return;
         }
 
         provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         signer = provider.getSigner();
+
         const address = await signer.getAddress();
+        document.getElementById("walletAddress").innerText = `Conectado: ${address}`;
 
-        document.getElementById("walletAddress").innerText = `Conectado: ${address.slice(0, 6)}...${address.slice(-4)}`;
-
-        contract = new ethers.Contract(contractAddress, abi, signer);
-
-        await updateGasBalance(address);
-      } catch (error) {
-        console.error("Erro ao conectar carteira:", error);
-        alert("Erro ao conectar: veja o console.");
+        contract = new ethers.Contract(contractAddress, abi, provider);
+        updateGasBalance(address);
+      } catch (err) {
+        console.error("Erro ao conectar carteira:", err);
+        alert("Erro ao conectar carteira.");
       }
     }
 
     async function updateGasBalance(userAddress) {
-  try {
-    const botInfo = await contract.getBotInfo(userAddress);
-    console.log("Bot Info recebido:", botInfo);
+      try {
+        const botInfo = await contract.getBotInfo(userAddress);
+        const gasRaw = botInfo.gasAmount;
 
-    const gasRaw = botInfo.gasAmount;
-    console.log("gasAmount bruto:", gasRaw.toString());
+        const formattedGas = parseFloat(ethers.utils.formatUnits(gasRaw, 18)).toFixed(3);
+        document.getElementById("gasBalance").innerText = `${formattedGas} MATIC`;
+      } catch (err) {
+        console.error("Erro ao buscar saldo de gás:", err);
+        document.getElementById("gasBalance").innerText = "Erro ao buscar";
+      }
+    }
 
-    const gas = ethers.utils.formatUnits(gasRaw, 18);
-    const formattedGas = parseFloat(gas).toFixed(3);
-    document.getElementById("gasBalance").innerText = `${formattedGas} MATIC`;
-  } catch (error) {
-    console.error("Erro ao buscar saldo de gás:", error);
-    document.getElementById("gasBalance").innerText = "Erro ao buscar saldo.";
-  }
-}
-
+    document.getElementById("connectButton").addEventListener("click", connectWallet);
+  </script>
+</body>
+</html>
