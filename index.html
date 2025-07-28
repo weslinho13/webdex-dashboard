@@ -1,75 +1,84 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard WebdEX</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+  <meta charset="UTF-8" />
+  <title>WEbdEX Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
   <style>
     body {
+      background-color: #111;
+      color: white;
       font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: #fff;
       padding: 20px;
       text-align: center;
     }
+
     button {
-      background: #3b82f6;
-      color: white;
+      background-color: #444;
       border: none;
-      padding: 12px 20px;
+      color: white;
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
       border-radius: 8px;
       cursor: pointer;
-      margin: 10px;
     }
-    #walletAddress {
-      margin-top: 10px;
-      font-weight: bold;
-    }
+
     .card {
-      background: #1e293b;
-      margin: 20px auto;
+      background-color: #222;
+      border-radius: 10px;
       padding: 20px;
-      border-radius: 12px;
-      width: 80%;
-      max-width: 400px;
+      margin: 20px auto;
+      width: 300px;
+      box-shadow: 0 0 10px #000;
     }
-    .label {
-      font-size: 1.2em;
-      color: #a3e635;
+
+    .title {
+      font-size: 20px;
+      margin-bottom: 10px;
+      color: #bbb;
     }
+
     .value {
-      font-size: 1.8em;
-      margin-top: 5px;
+      font-size: 24px;
+      font-weight: bold;
+      color: #0f0;
     }
   </style>
 </head>
 <body>
-  <h1>Dashboard WebdEX</h1>
+
+  <h1>WEbdEX Dashboard</h1>
+
   <button id="connectButton">Conectar Carteira</button>
-  <div id="walletAddress"></div>
+  <p id="walletAddress"></p>
 
   <div class="card">
-    <div class="label">Saldo de Gás</div>
-    <div class="value" id="gasBalance">-</div>
+    <div class="title">Saldo de Gás (MATIC)</div>
+    <div class="value" id="gasAmount">--</div>
   </div>
 
   <script>
-    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0"; // WEbdEXManagerV4 na Polygon
+    const connectButton = document.getElementById('connectButton');
+    const walletAddress = document.getElementById('walletAddress');
+    const gasAmountElement = document.getElementById('gasAmount');
+
+    const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
 
     const abi = [
       {
-        "inputs": [{"internalType": "address","name": "_addr","type": "address"}],
+        "inputs": [{"internalType": "address", "name": "_bot", "type": "address"}],
         "name": "getBotInfo",
         "outputs": [
           {
             "components": [
-              {"internalType": "uint256","name": "gasAmount","type": "uint256"},
-              {"internalType": "uint256","name": "passAmount","type": "uint256"},
-              {"internalType": "address","name": "pairAddress","type": "address"},
-              {"internalType": "address","name": "token0","type": "address"},
-              {"internalType": "address","name": "token1","type": "address"},
-              {"internalType": "uint256","name": "liquidity","type": "uint256"},
-              {"internalType": "uint256","name": "lastOperation","type": "uint256"}
+              { "internalType": "address", "name": "owner", "type": "address" },
+              { "internalType": "uint256", "name": "gasAmount", "type": "uint256" },
+              { "internalType": "uint256", "name": "passAmount", "type": "uint256" },
+              { "internalType": "uint256", "name": "liquidityAmount", "type": "uint256" },
+              { "internalType": "uint256", "name": "dailyProfit", "type": "uint256" },
+              { "internalType": "uint256", "name": "weeklyProfit", "type": "uint256" },
+              { "internalType": "uint256", "name": "monthlyProfit", "type": "uint256" }
             ],
             "internalType": "struct WEbdEXManagerV4.BotInfo",
             "name": "",
@@ -81,44 +90,38 @@
       }
     ];
 
-    let provider, signer, contract;
+    let provider;
+    let signer;
+    let contract;
 
     async function connectWallet() {
-      try {
-        if (!window.ethereum) {
-          alert("MetaMask não encontrada!");
-          return;
-        }
+      if (typeof window.ethereum === 'undefined') {
+        alert('MetaMask não encontrada!');
+        return;
+      }
 
+      try {
         provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         signer = provider.getSigner();
 
-        const address = await signer.getAddress();
-        document.getElementById("walletAddress").innerText = `Conectado: ${address}`;
+        const userAddress = await signer.getAddress();
+        walletAddress.innerText = "Conectado: " + userAddress;
 
-        contract = new ethers.Contract(contractAddress, abi, provider);
-        updateGasBalance(address);
-      } catch (err) {
-        console.error("Erro ao conectar carteira:", err);
-        alert("Erro ao conectar carteira.");
-      }
-    }
+        contract = new ethers.Contract(managerAddress, abi, provider);
 
-    async function updateGasBalance(userAddress) {
-      try {
         const botInfo = await contract.getBotInfo(userAddress);
-        const gasRaw = botInfo.gasAmount;
 
-        const formattedGas = parseFloat(ethers.utils.formatUnits(gasRaw, 18)).toFixed(3);
-        document.getElementById("gasBalance").innerText = `${formattedGas} MATIC`;
+        const gasInMatic = parseFloat(ethers.utils.formatUnits(botInfo.gasAmount, 18));
+        gasAmountElement.innerText = gasInMatic.toFixed(3);
+
       } catch (err) {
-        console.error("Erro ao buscar saldo de gás:", err);
-        document.getElementById("gasBalance").innerText = "Erro ao buscar";
+        console.error("Erro ao conectar ou buscar dados:", err);
+        alert("Erro ao conectar ou buscar dados. Veja o console.");
       }
     }
 
-    document.getElementById("connectButton").addEventListener("click", connectWallet);
+    connectButton.onclick = connectWallet;
   </script>
 </body>
 </html>
