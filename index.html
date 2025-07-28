@@ -3,190 +3,85 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard WebdEX - Conexão MetaMask e Saldo Gás</title>
+  <title>Teste MetaMask MATIC</title>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: #121212;
-      color: #f0f0f0;
-      margin: 0; padding: 20px;
-      display: flex; flex-direction: column; align-items: center;
-      min-height: 100vh;
-    }
-    h1 {
-      margin-bottom: 30px;
-      color: #4caf50;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      text-align: center;
     }
     button {
+      padding: 12px 24px;
+      font-size: 18px;
       background-color: #4caf50;
-      color: #121212;
       border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-weight: 600;
+      border-radius: 8px;
       cursor: pointer;
       margin: 10px;
-      transition: background-color 0.3s ease;
     }
-    button:hover {
-      background-color: #388e3c;
-    }
-    #address, #balance, #status {
+    .box {
       margin-top: 20px;
-      font-size: 1.2em;
-      background-color: #1f1f1f;
-      padding: 15px 25px;
+      padding: 10px;
+      background-color: #1e1e1e;
       border-radius: 10px;
-      width: 320px;
-      text-align: center;
-      word-break: break-all;
-      user-select: all;
+      font-size: 16px;
+      word-break: break-word;
     }
-    #status {
-      background-color: #333;
-      font-size: 1em;
-      margin-top: 10px;
-      color: #ffcc00;
+    #error {
+      color: red;
+      background-color: #330000;
     }
   </style>
 </head>
 <body>
 
-  <h1>Dashboard WebdEX</h1>
+  <h1>Conectar MetaMask e ver saldo MATIC</h1>
+  <button id="connectBtn">Conectar Carteira</button>
 
-  <div>
-    <button id="connectBtn">Conectar Carteira</button>
-    <button id="disconnectBtn" style="display:none;">Desconectar Carteira</button>
-  </div>
+  <div id="address" class="box"></div>
+  <div id="balance" class="box"></div>
+  <div id="status" class="box"></div>
+  <div id="error" class="box"></div>
 
-  <div id="address"></div>
-  <div id="balance"></div>
-  <div id="status"></div>
-
-  <!-- ethers.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const connectBtn = document.getElementById('connectBtn');
-      const disconnectBtn = document.getElementById('disconnectBtn');
       const addressDiv = document.getElementById('address');
       const balanceDiv = document.getElementById('balance');
       const statusDiv = document.getElementById('status');
+      const errorDiv = document.getElementById('error');
 
-      let provider;
-      let signer;
-
-      function formatAddress(addr) {
-        if (!addr) return '';
-        return addr.slice(0, 6) + '...' + addr.slice(-4);
-      }
-
-      function setStatus(message) {
-        statusDiv.textContent = message;
-      }
-
-      async function connectWallet() {
-        if (typeof window.ethereum === 'undefined') {
-          alert('MetaMask não detectada. Por favor, instale ou abra no app MetaMask.');
-          setStatus('MetaMask não detectada.');
+      async function connect() {
+        errorDiv.textContent = '';
+        if (!window.ethereum) {
+          errorDiv.textContent = '❌ MetaMask não detectada.';
           return;
         }
         try {
-          setStatus('Solicitando conexão...');
+          statusDiv.textContent = '🔄 Solicitando conexão...';
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          if (!accounts || accounts.length === 0) {
-            setStatus('Nenhuma conta conectada.');
-            return;
-          }
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          signer = provider.getSigner();
-          const userAddress = accounts[0];
-          addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          const signer = provider.getSigner();
+          const address = await signer.getAddress();
+
+          addressDiv.textContent = '🟢 Carteira: ' + address;
+
+          const balance = await provider.getBalance(address);
+          const matic = ethers.utils.formatEther(balance);
+          balanceDiv.textContent = '💰 Saldo de Gás (MATIC): ' + parseFloat(matic).toFixed(4);
+
+          statusDiv.textContent = '✅ Conectado com sucesso!';
           connectBtn.style.display = 'none';
-          disconnectBtn.style.display = 'inline-block';
-          setStatus('Conectado com sucesso!');
-
-          // Buscar saldo
-          const balance = await provider.getBalance(userAddress);
-          const balanceInMatic = ethers.utils.formatEther(balance);
-          balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
-
-          // Event listener para troca de contas
-          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-          window.ethereum.on('accountsChanged', handleAccountsChanged);
-          window.ethereum.on('disconnect', resetUI);
-        } catch (error) {
-          console.error('Erro ao conectar:', error);
-          setStatus('Erro na conexão. Veja console para detalhes.');
-          alert('Erro na conexão: ' + (error.message || error));
+        } catch (err) {
+          errorDiv.textContent = '❌ Erro: ' + (err.message || err);
         }
       }
 
-      async function disconnectWallet() {
-        // MetaMask não tem método para desconectar programaticamente
-        resetUI();
-        setStatus('Carteira desconectada.');
-      }
-
-      async function handleAccountsChanged(accounts) {
-        if (!accounts || accounts.length === 0) {
-          resetUI();
-          setStatus('Carteira desconectada.');
-        } else {
-          const userAddress = accounts[0];
-          addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
-          // Atualizar saldo
-          const balance = await provider.getBalance(userAddress);
-          const balanceInMatic = ethers.utils.formatEther(balance);
-          balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
-          setStatus('Conta alterada.');
-        }
-      }
-
-      function resetUI() {
-        addressDiv.textContent = '';
-        balanceDiv.textContent = '';
-        connectBtn.style.display = 'inline-block';
-        disconnectBtn.style.display = 'none';
-      }
-
-      connectBtn.addEventListener('click', connectWallet);
-      disconnectBtn.addEventListener('click', disconnectWallet);
-
-      // Se já conectado quando carregar a página, exibe estado
-      async function checkConnectionOnLoad() {
-        if (typeof window.ethereum === 'undefined') {
-          setStatus('MetaMask não detectada.');
-          return;
-        }
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        const accounts = await provider.listAccounts();
-        if (accounts.length > 0) {
-          signer = provider.getSigner();
-          const userAddress = accounts[0];
-          addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
-          connectBtn.style.display = 'none';
-          disconnectBtn.style.display = 'inline-block';
-
-          // Buscar saldo
-          const balance = await provider.getBalance(userAddress);
-          const balanceInMatic = ethers.utils.formatEther(balance);
-          balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
-          setStatus('Conectado ao carregar a página.');
-
-          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-          window.ethereum.on('accountsChanged', handleAccountsChanged);
-          window.ethereum.on('disconnect', resetUI);
-        } else {
-          setStatus('Nenhuma carteira conectada.');
-        }
-      }
-
-      checkConnectionOnLoad();
-
+      connectBtn.addEventListener('click', connect);
     });
   </script>
-
 </body>
 </html>
