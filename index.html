@@ -31,7 +31,7 @@
     button:hover {
       background-color: #388e3c;
     }
-    #address, #balance {
+    #address, #balance, #status {
       margin-top: 20px;
       font-size: 1.2em;
       background-color: #1f1f1f;
@@ -41,6 +41,12 @@
       text-align: center;
       word-break: break-all;
       user-select: all;
+    }
+    #status {
+      background-color: #333;
+      font-size: 1em;
+      margin-top: 10px;
+      color: #ffcc00;
     }
   </style>
 </head>
@@ -55,83 +61,131 @@
 
   <div id="address"></div>
   <div id="balance"></div>
+  <div id="status"></div>
 
   <!-- ethers.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
 
   <script>
-    const connectBtn = document.getElementById('connectBtn');
-    const disconnectBtn = document.getElementById('disconnectBtn');
-    const addressDiv = document.getElementById('address');
-    const balanceDiv = document.getElementById('balance');
+    document.addEventListener('DOMContentLoaded', () => {
+      const connectBtn = document.getElementById('connectBtn');
+      const disconnectBtn = document.getElementById('disconnectBtn');
+      const addressDiv = document.getElementById('address');
+      const balanceDiv = document.getElementById('balance');
+      const statusDiv = document.getElementById('status');
 
-    let provider;
-    let signer;
+      let provider;
+      let signer;
 
-    // Formata endereço para exibir só o começo e o fim
-    function formatAddress(addr) {
-      return addr.slice(0, 6) + '...' + addr.slice(-4);
-    }
-
-    async function connectWallet() {
-      if (!window.ethereum) {
-        alert('MetaMask não encontrada. Instale a extensão ou app.');
-        return;
+      function formatAddress(addr) {
+        if (!addr) return '';
+        return addr.slice(0, 6) + '...' + addr.slice(-4);
       }
 
-      try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        signer = provider.getSigner();
-
-        const userAddress = await signer.getAddress();
-        addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
-        connectBtn.style.display = 'none';
-        disconnectBtn.style.display = 'inline-block';
-
-        // Buscar e mostrar saldo
-        const balance = await provider.getBalance(userAddress);
-        const balanceInMatic = ethers.utils.formatEther(balance);
-        balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
-
-        // Escutar mudança de conta/metamask desconectada
-        window.ethereum.on('accountsChanged', handleAccountsChanged);
-        window.ethereum.on('disconnect', resetUI);
-      } catch (error) {
-        console.error('Erro ao conectar:', error);
-        alert('Falha na conexão. Veja o console para detalhes.');
+      function setStatus(message) {
+        statusDiv.textContent = message;
       }
-    }
 
-    function resetUI() {
-      addressDiv.textContent = '';
-      balanceDiv.textContent = '';
-      connectBtn.style.display = 'inline-block';
-      disconnectBtn.style.display = 'none';
-    }
+      async function connectWallet() {
+        if (typeof window.ethereum === 'undefined') {
+          alert('MetaMask não detectada. Por favor, instale ou abra no app MetaMask.');
+          setStatus('MetaMask não detectada.');
+          return;
+        }
+        try {
+          setStatus('Solicitando conexão...');
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          if (!accounts || accounts.length === 0) {
+            setStatus('Nenhuma conta conectada.');
+            return;
+          }
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+          const userAddress = accounts[0];
+          addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
+          connectBtn.style.display = 'none';
+          disconnectBtn.style.display = 'inline-block';
+          setStatus('Conectado com sucesso!');
 
-    async function disconnectWallet() {
-      // MetaMask não tem método para desconectar programaticamente
-      // Mas aqui vamos só limpar a interface
-      resetUI();
-    }
+          // Buscar saldo
+          const balance = await provider.getBalance(userAddress);
+          const balanceInMatic = ethers.utils.formatEther(balance);
+          balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
 
-    async function handleAccountsChanged(accounts) {
-      if (accounts.length === 0) {
-        // Carteira desconectada
+          // Event listener para troca de contas
+          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          window.ethereum.on('accountsChanged', handleAccountsChanged);
+          window.ethereum.on('disconnect', resetUI);
+        } catch (error) {
+          console.error('Erro ao conectar:', error);
+          setStatus('Erro na conexão. Veja console para detalhes.');
+          alert('Erro na conexão: ' + (error.message || error));
+        }
+      }
+
+      async function disconnectWallet() {
+        // MetaMask não tem método para desconectar programaticamente
         resetUI();
-      } else {
-        const userAddress = accounts[0];
-        addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
-        // Atualizar saldo
-        const balance = await provider.getBalance(userAddress);
-        const balanceInMatic = ethers.utils.formatEther(balance);
-        balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
+        setStatus('Carteira desconectada.');
       }
-    }
 
-    connectBtn.addEventListener('click', connectWallet);
-    disconnectBtn.addEventListener('click', disconnectWallet);
+      async function handleAccountsChanged(accounts) {
+        if (!accounts || accounts.length === 0) {
+          resetUI();
+          setStatus('Carteira desconectada.');
+        } else {
+          const userAddress = accounts[0];
+          addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
+          // Atualizar saldo
+          const balance = await provider.getBalance(userAddress);
+          const balanceInMatic = ethers.utils.formatEther(balance);
+          balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
+          setStatus('Conta alterada.');
+        }
+      }
+
+      function resetUI() {
+        addressDiv.textContent = '';
+        balanceDiv.textContent = '';
+        connectBtn.style.display = 'inline-block';
+        disconnectBtn.style.display = 'none';
+      }
+
+      connectBtn.addEventListener('click', connectWallet);
+      disconnectBtn.addEventListener('click', disconnectWallet);
+
+      // Se já conectado quando carregar a página, exibe estado
+      async function checkConnectionOnLoad() {
+        if (typeof window.ethereum === 'undefined') {
+          setStatus('MetaMask não detectada.');
+          return;
+        }
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        const accounts = await provider.listAccounts();
+        if (accounts.length > 0) {
+          signer = provider.getSigner();
+          const userAddress = accounts[0];
+          addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
+          connectBtn.style.display = 'none';
+          disconnectBtn.style.display = 'inline-block';
+
+          // Buscar saldo
+          const balance = await provider.getBalance(userAddress);
+          const balanceInMatic = ethers.utils.formatEther(balance);
+          balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
+          setStatus('Conectado ao carregar a página.');
+
+          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          window.ethereum.on('accountsChanged', handleAccountsChanged);
+          window.ethereum.on('disconnect', resetUI);
+        } else {
+          setStatus('Nenhuma carteira conectada.');
+        }
+      }
+
+      checkConnectionOnLoad();
+
+    });
   </script>
 
 </body>
