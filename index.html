@@ -70,19 +70,19 @@
     }
 
     async function updateGasBalance(userAddress) {
-      try {
-        const botInfo = await contract.getBotInfo(userAddress);
-        const gas = ethers.utils.formatUnits(botInfo.gasAmount, 18);
-        const formattedGas = parseFloat(gas).toFixed(3);
-        document.getElementById("gasBalance").innerText = `${formattedGas} MATIC`;
-      } catch (error) {
-        console.error("Erro ao buscar saldo de gás:", error);
-        document.getElementById("gasBalance").innerText = "Erro ao buscar saldo.";
-      }
-    }
+  try {
+    const botInfo = await contract.getBotInfo(userAddress);
+    console.log("Bot Info recebido:", botInfo);
 
-    document.getElementById("connectButton").addEventListener("click", connectWallet);
-  </script>
+    const gasRaw = botInfo.gasAmount;
+    console.log("gasAmount bruto:", gasRaw.toString());
 
-</body>
-</html>
+    const gas = ethers.utils.formatUnits(gasRaw, 18);
+    const formattedGas = parseFloat(gas).toFixed(3);
+    document.getElementById("gasBalance").innerText = `${formattedGas} MATIC`;
+  } catch (error) {
+    console.error("Erro ao buscar saldo de gás:", error);
+    document.getElementById("gasBalance").innerText = "Erro ao buscar saldo.";
+  }
+}
+
