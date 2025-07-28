@@ -2,102 +2,109 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WEbdEX Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+  <title>Dashboard WEbdEX - Saldo de Gás</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body {
-      background-color: #111;
-      color: #fff;
       font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
       text-align: center;
       padding: 20px;
     }
     .card {
-      background-color: #222;
-      border-radius: 10px;
+      background: #222;
+      border-radius: 12px;
       padding: 20px;
       margin: 10px auto;
-      width: 90%;
-      max-width: 400px;
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+      width: 300px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
     }
     button {
-      background-color: #3a3aff;
-      color: white;
       padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
+      background-color: #4CAF50;
+      color: white;
       font-size: 16px;
+      border: none;
+      border-radius: 8px;
       cursor: pointer;
+      margin-top: 10px;
     }
-    button:hover {
-      background-color: #2e2ed1;
+    #address {
+      margin-top: 10px;
+      font-size: 14px;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
-  <h1>🔌 WEbdEX Dashboard</h1>
+  <h1>Saldo de Gás (Contrato)</h1>
 
   <div class="card">
-    <h2>Carteira</h2>
-    <p id="walletAddress">Desconectado</p>
-    <button onclick="connectWallet()">Conectar</button>
-    <button onclick="disconnectWallet()">Desconectar</button>
-  </div>
-
-  <div class="card">
-    <h2>Saldo de Gás</h2>
-    <p id="gasBalance">Carregando...</p>
+    <div id="gasBalance">Carregando...</div>
+    <button onclick="connectWallet()">Conectar Carteira</button>
+    <div id="address"></div>
   </div>
 
   <script>
+    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0"; // WEbdEXManagerV4
+    const abi = [
+      {
+        "inputs":[{"internalType":"address","name":"user","type":"address"}],
+        "name":"getBotInfo",
+        "outputs":[
+          {"internalType":"address","name":"tokenA","type":"address"},
+          {"internalType":"address","name":"tokenB","type":"address"},
+          {"internalType":"address","name":"lpToken","type":"address"},
+          {"internalType":"uint256","name":"totalLiquidity","type":"uint256"},
+          {"internalType":"uint256","name":"dailyProfit","type":"uint256"},
+          {"internalType":"uint256","name":"weeklyProfit","type":"uint256"},
+          {"internalType":"uint256","name":"monthlyProfit","type":"uint256"},
+          {"internalType":"uint256","name":"gasAmount","type":"uint256"},
+          {"internalType":"uint256","name":"passAmount","type":"uint256"},
+          {"internalType":"bool","name":"isActive","type":"bool"}
+        ],
+        "stateMutability":"view",
+        "type":"function"
+      }
+    ];
+
     let provider;
     let signer;
-    let userAddress;
-
-    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-    const contractABI = [
-      "function getBotInfo(address) view returns (uint256,uint256,address,address,uint256,uint256,uint256,bool)"
-    ];
+    let contract;
 
     async function connectWallet() {
       if (window.ethereum) {
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        signer = provider.getSigner();
-        userAddress = await signer.getAddress();
-        document.getElementById("walletAddress").innerText = userAddress;
-        updateGas();
+        try {
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+          const userAddress = await signer.getAddress();
+
+          document.getElementById('address').innerText = "Conectado: " + userAddress;
+
+          contract = new ethers.Contract(contractAddress, abi, provider);
+          updateGasBalance(userAddress);
+        } catch (error) {
+          console.error("Erro ao conectar carteira:", error);
+        }
       } else {
-        alert("MetaMask não encontrada");
+        alert("MetaMask não detectada.");
       }
     }
 
-    function disconnectWallet() {
-      signer = null;
-      userAddress = null;
-      document.getElementById("walletAddress").innerText = "Desconectado";
-      document.getElementById("gasBalance").innerText = "-";
-    }
-
-    async function updateGas() {
+    async function updateGasBalance(userAddress) {
       try {
-        const contract = new ethers.Contract(contractAddress, contractABI, provider);
         const info = await contract.getBotInfo(userAddress);
-        const gas = ethers.utils.formatUnits(info[4], 18);
-        document.getElementById("gasBalance").innerText = `${parseFloat(gas).toFixed(3)} MATIC`;
-      } catch (err) {
-        console.error("Erro ao buscar saldo de gás:", err);
-        document.getElementById("gasBalance").innerText = "Erro ao carregar";
+        const rawGas = info.gasAmount;
+        const gasFormatted = parseFloat(ethers.utils.formatUnits(rawGas, 18)).toFixed(3);
+        document.getElementById("gasBalance").innerText = `Gás depositado: ${gasFormatted} MATIC`;
+      } catch (error) {
+        console.error("Erro ao buscar saldo de gás:", error);
+        document.getElementById("gasBalance").innerText = "Erro ao carregar saldo de gás.";
       }
     }
-
-    setInterval(() => {
-      if (userAddress) {
-        updateGas();
-      }
-    }, 30000); // Atualiza a cada 30 segundos
   </script>
 </body>
 </html>
