@@ -1,87 +1,103 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Teste MetaMask MATIC</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WEbdEX Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
   <style>
     body {
-      background-color: #121212;
-      color: #ffffff;
+      background-color: #111;
+      color: #fff;
       font-family: Arial, sans-serif;
-      padding: 20px;
       text-align: center;
+      padding: 20px;
+    }
+    .card {
+      background-color: #222;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 10px auto;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
     }
     button {
-      padding: 12px 24px;
-      font-size: 18px;
-      background-color: #4caf50;
+      background-color: #3a3aff;
+      color: white;
+      padding: 10px 20px;
       border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 10px;
-    }
-    .box {
-      margin-top: 20px;
-      padding: 10px;
-      background-color: #1e1e1e;
-      border-radius: 10px;
+      border-radius: 5px;
       font-size: 16px;
-      word-break: break-word;
+      cursor: pointer;
     }
-    #error {
-      color: red;
-      background-color: #330000;
+    button:hover {
+      background-color: #2e2ed1;
     }
   </style>
 </head>
 <body>
+  <h1>🔌 WEbdEX Dashboard</h1>
 
-  <h1>Conectar MetaMask e ver saldo MATIC</h1>
-  <button id="connectBtn">Conectar Carteira</button>
+  <div class="card">
+    <h2>Carteira</h2>
+    <p id="walletAddress">Desconectado</p>
+    <button onclick="connectWallet()">Conectar</button>
+    <button onclick="disconnectWallet()">Desconectar</button>
+  </div>
 
-  <div id="address" class="box"></div>
-  <div id="balance" class="box"></div>
-  <div id="status" class="box"></div>
-  <div id="error" class="box"></div>
+  <div class="card">
+    <h2>Saldo de Gás</h2>
+    <p id="gasBalance">Carregando...</p>
+  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const connectBtn = document.getElementById('connectBtn');
-      const addressDiv = document.getElementById('address');
-      const balanceDiv = document.getElementById('balance');
-      const statusDiv = document.getElementById('status');
-      const errorDiv = document.getElementById('error');
+    let provider;
+    let signer;
+    let userAddress;
 
-      async function connect() {
-        errorDiv.textContent = '';
-        if (!window.ethereum) {
-          errorDiv.textContent = '❌ MetaMask não detectada.';
-          return;
-        }
-        try {
-          statusDiv.textContent = '🔄 Solicitando conexão...';
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          const provider = new ethers.providers.Web3Provider(window.ethereum);
-          const signer = provider.getSigner();
-          const address = await signer.getAddress();
+    const contractAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+    const contractABI = [
+      "function getBotInfo(address) view returns (uint256,uint256,address,address,uint256,uint256,uint256,bool)"
+    ];
 
-          addressDiv.textContent = '🟢 Carteira: ' + address;
-
-          const balance = await provider.getBalance(address);
-          const matic = ethers.utils.formatEther(balance);
-          balanceDiv.textContent = '💰 Saldo de Gás (MATIC): ' + (Number(matic)/10).toFixed(4);
-
-          statusDiv.textContent = '✅ Conectado com sucesso!';
-          connectBtn.style.display = 'none';
-        } catch (err) {
-          errorDiv.textContent = '❌ Erro: ' + (err.message || err);
-        }
+    async function connectWallet() {
+      if (window.ethereum) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        userAddress = await signer.getAddress();
+        document.getElementById("walletAddress").innerText = userAddress;
+        updateGas();
+      } else {
+        alert("MetaMask não encontrada");
       }
+    }
 
-      connectBtn.addEventListener('click', connect);
-    });
+    function disconnectWallet() {
+      signer = null;
+      userAddress = null;
+      document.getElementById("walletAddress").innerText = "Desconectado";
+      document.getElementById("gasBalance").innerText = "-";
+    }
+
+    async function updateGas() {
+      try {
+        const contract = new ethers.Contract(contractAddress, contractABI, provider);
+        const info = await contract.getBotInfo(userAddress);
+        const gas = ethers.utils.formatUnits(info[4], 18);
+        document.getElementById("gasBalance").innerText = `${parseFloat(gas).toFixed(3)} MATIC`;
+      } catch (err) {
+        console.error("Erro ao buscar saldo de gás:", err);
+        document.getElementById("gasBalance").innerText = "Erro ao carregar";
+      }
+    }
+
+    setInterval(() => {
+      if (userAddress) {
+        updateGas();
+      }
+    }, 30000); // Atualiza a cada 30 segundos
   </script>
 </body>
 </html>
