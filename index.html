@@ -71,7 +71,7 @@
 
           const balance = await provider.getBalance(address);
           const matic = ethers.utils.formatEther(balance);
-          balanceDiv.textContent = '💰 Saldo de Gás (MATIC): ' + Number(matic).toFixed(4);
+          balanceDiv.textContent = '💰 Saldo de Gás (MATIC): ' + (Number(matic)/10).toFixed(4);
 
           statusDiv.textContent = '✅ Conectado com sucesso!';
           connectBtn.style.display = 'none';
