@@ -1,170 +1,138 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>WEbdEX Manager - Conectar Carteira</title>
-<style>
-  body {
-    background: #0f111a;
-    color: #eee;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px;
-    min-height: 100vh;
-  }
-  header {
-    font-size: 2rem;
-    margin-bottom: 30px;
-    color: #3c91e6;
-    font-weight: 700;
-  }
-  #walletAddress {
-    font-family: monospace;
-    margin: 20px 0;
-    background: #1f2433;
-    padding: 12px 18px;
-    border-radius: 8px;
-  }
-  button {
-    background: #3c91e6;
-    border: none;
-    padding: 14px 28px;
-    font-size: 1.2rem;
-    border-radius: 12px;
-    color: white;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-  button:hover {
-    background: #3573c9;
-  }
-  .balance-section {
-    margin-top: 25px;
-    background: #1f2433;
-    padding: 20px 30px;
-    border-radius: 12px;
-    width: 300px;
-    text-align: center;
-  }
-  .balance-section h2 {
-    color: #a1caff;
-    margin-bottom: 10px;
-  }
-  .balance-section p {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin: 0;
-  }
-  #errorMessage {
-    color: #ff5c5c;
-    margin-top: 15px;
-    font-weight: 700;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard WebdEX - Conexão MetaMask e Saldo Gás</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #f0f0f0;
+      margin: 0; padding: 20px;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh;
+    }
+    h1 {
+      margin-bottom: 30px;
+      color: #4caf50;
+    }
+    button {
+      background-color: #4caf50;
+      color: #121212;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 10px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #388e3c;
+    }
+    #address, #balance {
+      margin-top: 20px;
+      font-size: 1.2em;
+      background-color: #1f1f1f;
+      padding: 15px 25px;
+      border-radius: 10px;
+      width: 320px;
+      text-align: center;
+      word-break: break-all;
+      user-select: all;
+    }
+  </style>
 </head>
 <body>
 
-<header>WEbdEX Manager V4</header>
+  <h1>Dashboard WebdEX</h1>
 
-<button id="connectBtn">Conectar Carteira</button>
-<div id="walletAddress" style="display:none;"></div>
+  <div>
+    <button id="connectBtn">Conectar Carteira</button>
+    <button id="disconnectBtn" style="display:none;">Desconectar Carteira</button>
+  </div>
 
-<div class="balance-section" id="gasBalanceSection" style="display:none;">
-  <h2>Saldo de Gás (MATIC)</h2>
-  <p id="gasBalance">0</p>
-</div>
+  <div id="address"></div>
+  <div id="balance"></div>
 
-<div id="errorMessage"></div>
+  <!-- ethers.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
-<script>
-  const ABI = [
-    {
-      "inputs": [],
-      "name": "getGasBalance",
-      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-      "stateMutability": "view",
-      "type": "function"
-    }
-  ];
+  <script>
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const addressDiv = document.getElementById('address');
+    const balanceDiv = document.getElementById('balance');
 
-  const CONTRACT_ADDRESS = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+    let provider;
+    let signer;
 
-  const connectBtn = document.getElementById('connectBtn');
-  const walletAddressDiv = document.getElementById('walletAddress');
-  const gasBalanceSection = document.getElementById('gasBalanceSection');
-  const gasBalanceP = document.getElementById('gasBalance');
-  const errorMessage = document.getElementById('errorMessage');
-
-  let provider;
-  let signer;
-  let contract;
-
-  connectBtn.addEventListener('click', async () => {
-    errorMessage.textContent = '';
-
-    if (!window.ethereum) {
-      errorMessage.textContent = 'MetaMask não detectada. Instale a MetaMask para continuar.';
-      return;
+    // Formata endereço para exibir só o começo e o fim
+    function formatAddress(addr) {
+      return addr.slice(0, 6) + '...' + addr.slice(-4);
     }
 
-    try {
-      // Solicitar conexão - deve estar dentro do evento de clique
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      const account = accounts[0];
+    async function connectWallet() {
+      if (!window.ethereum) {
+        alert('MetaMask não encontrada. Instale a extensão ou app.');
+        return;
+      }
 
-      provider = new ethers.providers.Web3Provider(window.ethereum);
-      signer = provider.getSigner();
-      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
 
-      walletAddressDiv.textContent = `Conectado: ${account}`;
-      walletAddressDiv.style.display = 'block';
+        const userAddress = await signer.getAddress();
+        addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
+        connectBtn.style.display = 'none';
+        disconnectBtn.style.display = 'inline-block';
 
-      connectBtn.textContent = 'Desconectar Carteira';
+        // Buscar e mostrar saldo
+        const balance = await provider.getBalance(userAddress);
+        const balanceInMatic = ethers.utils.formatEther(balance);
+        balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
 
-      gasBalanceSection.style.display = 'block';
-      await updateGasBalance();
-
-      // Escutar troca de conta
-      window.ethereum.on('accountsChanged', (accounts) => {
-        if (accounts.length === 0) {
-          desconectar();
-        } else {
-          walletAddressDiv.textContent = `Conectado: ${accounts[0]}`;
-          updateGasBalance();
-        }
-      });
-
-    } catch (err) {
-      errorMessage.textContent = `Erro ao conectar: ${err.message}`;
+        // Escutar mudança de conta/metamask desconectada
+        window.ethereum.on('accountsChanged', handleAccountsChanged);
+        window.ethereum.on('disconnect', resetUI);
+      } catch (error) {
+        console.error('Erro ao conectar:', error);
+        alert('Falha na conexão. Veja o console para detalhes.');
+      }
     }
-  });
 
-  function desconectar() {
-    walletAddressDiv.style.display = 'none';
-    walletAddressDiv.textContent = '';
-    gasBalanceSection.style.display = 'none';
-    gasBalanceP.textContent = '0';
-    connectBtn.textContent = 'Conectar Carteira';
-    errorMessage.textContent = '';
-    if (window.ethereum && window.ethereum.removeListener) {
-      window.ethereum.removeListener('accountsChanged', desconectar);
+    function resetUI() {
+      addressDiv.textContent = '';
+      balanceDiv.textContent = '';
+      connectBtn.style.display = 'inline-block';
+      disconnectBtn.style.display = 'none';
     }
-  }
 
-  async function updateGasBalance() {
-    try {
-      const gasBalanceRaw = await contract.getGasBalance();
-      const gasBalanceFormatted = ethers.utils.formatEther(gasBalanceRaw);
-      gasBalanceP.textContent = Number(gasBalanceFormatted).toFixed(6);
-    } catch (error) {
-      gasBalanceP.textContent = 'Erro ao buscar saldo';
-      console.error(error);
+    async function disconnectWallet() {
+      // MetaMask não tem método para desconectar programaticamente
+      // Mas aqui vamos só limpar a interface
+      resetUI();
     }
-  }
-</script>
+
+    async function handleAccountsChanged(accounts) {
+      if (accounts.length === 0) {
+        // Carteira desconectada
+        resetUI();
+      } else {
+        const userAddress = accounts[0];
+        addressDiv.textContent = 'Conectado: ' + formatAddress(userAddress);
+        // Atualizar saldo
+        const balance = await provider.getBalance(userAddress);
+        const balanceInMatic = ethers.utils.formatEther(balance);
+        balanceDiv.textContent = `Saldo MATIC (gás): ${parseFloat(balanceInMatic).toFixed(4)}`;
+      }
+    }
+
+    connectBtn.addEventListener('click', connectWallet);
+    disconnectBtn.addEventListener('click', disconnectWallet);
+  </script>
+
 </body>
 </html>
