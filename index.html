@@ -1,123 +1,136 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>WEbdEX Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body {
-      background-color: #111;
-      color: white;
       font-family: Arial, sans-serif;
+      background: #101010;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       padding: 20px;
+    }
+
+    h1 {
+      color: #00ffcc;
+    }
+
+    .card {
+      background: #1e1e1e;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 10px;
+      box-shadow: 0 0 12px #00ffcc44;
+      width: 300px;
       text-align: center;
     }
 
     button {
-      background-color: #444;
+      background: #00ffcc;
+      color: #000;
       border: none;
-      color: white;
-      padding: 10px 20px;
-      margin: 10px;
-      font-size: 16px;
+      padding: 10px 16px;
       border-radius: 8px;
       cursor: pointer;
-    }
-
-    .card {
-      background-color: #222;
-      border-radius: 10px;
-      padding: 20px;
-      margin: 20px auto;
-      width: 300px;
-      box-shadow: 0 0 10px #000;
-    }
-
-    .title {
-      font-size: 20px;
-      margin-bottom: 10px;
-      color: #bbb;
-    }
-
-    .value {
-      font-size: 24px;
+      margin: 10px;
       font-weight: bold;
-      color: #0f0;
+    }
+
+    button:hover {
+      background: #00ccaa;
     }
   </style>
 </head>
 <body>
-
   <h1>WEbdEX Dashboard</h1>
 
-  <button id="connectButton">Conectar Carteira</button>
-  <p id="walletAddress"></p>
+  <div class="card">
+    <div id="walletStatus">Carteira: Desconectada</div>
+    <button id="connectButton">Conectar Carteira</button>
+    <button id="disconnectButton" style="display:none;">Desconectar</button>
+  </div>
 
   <div class="card">
-    <div class="title">Saldo de Gás (MATIC)</div>
-    <div class="value" id="gasAmount">--</div>
+    <h3>Saldo de Gás</h3>
+    <div id="gasAmount">--</div>
   </div>
 
   <script>
-    const connectButton = document.getElementById('connectButton');
-    const walletAddress = document.getElementById('walletAddress');
-    const gasAmountElement = document.getElementById('gasAmount');
+    const connectButton = document.getElementById("connectButton");
+    const disconnectButton = document.getElementById("disconnectButton");
+    const walletStatus = document.getElementById("walletStatus");
+    const gasAmountElement = document.getElementById("gasAmount");
 
-    const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-
+    const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0"; // Endereço do contrato Manager
     const abi = [
       {
-        "inputs": [{"internalType": "address", "name": "_bot", "type": "address"}],
-        "name": "getBotInfo",
-        "outputs": [
-          {
-            "components": [
-              { "internalType": "address", "name": "owner", "type": "address" },
-              { "internalType": "uint256", "name": "gasAmount", "type": "uint256" },
-              { "internalType": "uint256", "name": "passAmount", "type": "uint256" },
-              { "internalType": "uint256", "name": "liquidityAmount", "type": "uint256" },
-              { "internalType": "uint256", "name": "dailyProfit", "type": "uint256" },
-              { "internalType": "uint256", "name": "weeklyProfit", "type": "uint256" },
-              { "internalType": "uint256", "name": "monthlyProfit", "type": "uint256" }
-            ],
-            "internalType": "struct WEbdEXManagerV4.BotInfo",
-            "name": "",
-            "type": "tuple"
-          }
+        "inputs":[{"internalType":"address","name":"_bot","type":"address"}],
+        "name":"getBotInfo",
+        "outputs":[
+          {"internalType":"uint256","name":"gasAmount","type":"uint256"},
+          {"internalType":"uint256","name":"passAmount","type":"uint256"},
+          {"internalType":"address","name":"polyAddress","type":"address"},
+          {"internalType":"address","name":"webdexAddress","type":"address"},
+          {"internalType":"uint256","name":"liquidity","type":"uint256"},
+          {"internalType":"uint256","name":"profitDaily","type":"uint256"},
+          {"internalType":"uint256","name":"profitWeekly","type":"uint256"},
+          {"internalType":"uint256","name":"profitMonthly","type":"uint256"}
         ],
-        "stateMutability": "view",
-        "type": "function"
+        "stateMutability":"view",
+        "type":"function"
       }
     ];
 
-    let provider;
-    let signer;
+    let provider, signer, address;
 
-    connectButton.onclick = async () => {
+    async function connectWallet() {
+      if (typeof window.ethereum === 'undefined') {
+        alert("MetaMask não encontrada.");
+        return;
+      }
+
       try {
-        if (!window.ethereum) {
-          alert("MetaMask não encontrada!");
-          return;
-        }
-
         provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         signer = provider.getSigner();
-        const address = await signer.getAddress();
+        address = await signer.getAddress();
 
-        walletAddress.innerText = `Conectado: ${address}`;
+        walletStatus.innerText = "Carteira: " + address;
+        connectButton.style.display = "none";
+        disconnectButton.style.display = "inline-block";
 
+        await fetchGasAmount();
+      } catch (err) {
+        console.error("Erro ao conectar carteira:", err);
+      }
+    }
+
+    async function disconnectWallet() {
+      walletStatus.innerText = "Carteira: Desconectada";
+      connectButton.style.display = "inline-block";
+      disconnectButton.style.display = "none";
+      gasAmountElement.innerText = "--";
+    }
+
+    async function fetchGasAmount() {
+      try {
         const contract = new ethers.Contract(managerAddress, abi, signer);
         const info = await contract.getBotInfo(address);
-
-        const gas = ethers.utils.formatEther(info.gasAmount);
+        const gas = ethers.utils.formatUnits(info.gasAmount, 18); // assumindo 18 casas decimais
         gasAmountElement.innerText = parseFloat(gas).toFixed(3);
-
       } catch (err) {
-        console.error("Erro ao conectar ou buscar saldo de gás:", err);
-        alert("Erro ao buscar saldo de gás. Veja o console para detalhes.");
+        console.error("Erro ao buscar saldo de gás:", err);
+        gasAmountElement.innerText = "Erro";
       }
-    };
+    }
+
+    connectButton.onclick = connectWallet;
+    disconnectButton.onclick = disconnectWallet;
   </script>
 </body>
 </html>
