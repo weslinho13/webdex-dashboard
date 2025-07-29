@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>WEbdEX Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body {
       background-color: #111;
@@ -92,36 +92,32 @@
 
     let provider;
     let signer;
-    let contract;
 
-    async function connectWallet() {
-      if (typeof window.ethereum === 'undefined') {
-        alert('MetaMask não encontrada!');
-        return;
-      }
-
+    connectButton.onclick = async () => {
       try {
+        if (!window.ethereum) {
+          alert("MetaMask não encontrada!");
+          return;
+        }
+
         provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         signer = provider.getSigner();
+        const address = await signer.getAddress();
 
-        const userAddress = await signer.getAddress();
-        walletAddress.innerText = "Conectado: " + userAddress;
+        walletAddress.innerText = `Conectado: ${address}`;
 
-        contract = new ethers.Contract(managerAddress, abi, provider);
+        const contract = new ethers.Contract(managerAddress, abi, signer);
+        const info = await contract.getBotInfo(address);
 
-        const botInfo = await contract.getBotInfo(userAddress);
-
-        const gasInMatic = parseFloat(ethers.utils.formatUnits(botInfo.gasAmount, 18));
-        gasAmountElement.innerText = gasInMatic.toFixed(3);
+        const gas = ethers.utils.formatEther(info.gasAmount);
+        gasAmountElement.innerText = parseFloat(gas).toFixed(3);
 
       } catch (err) {
-        console.error("Erro ao conectar ou buscar dados:", err);
-        alert("Erro ao conectar ou buscar dados. Veja o console.");
+        console.error("Erro ao conectar ou buscar saldo de gás:", err);
+        alert("Erro ao buscar saldo de gás. Veja o console para detalhes.");
       }
-    }
-
-    connectButton.onclick = connectWallet;
+    };
   </script>
 </body>
 </html>
