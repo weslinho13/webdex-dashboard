@@ -1,98 +1,53 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard WebdEX</title>
+  <meta charset="UTF-8">
+  <title>Dashboard WEbdEX</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #111;
-      color: #eee;
-      margin: 0;
-      padding: 20px;
+      background: #121212;
+      color: #ffffff;
       text-align: center;
-    }
-    .card {
-      background-color: #1e1e1e;
       padding: 20px;
-      margin: 15px auto;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 400px;
-      box-shadow: 0 0 10px rgba(0, 255, 150, 0.2);
     }
     button {
-      background-color: #00cc99;
+      background: #00adb5;
+      color: white;
       border: none;
       padding: 10px 20px;
-      color: white;
       font-size: 16px;
-      border-radius: 8px;
       margin: 10px;
+      border-radius: 8px;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #00aa88;
-    }
-    #status {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #aaa;
+    .info {
+      margin-top: 20px;
+      font-size: 18px;
     }
   </style>
 </head>
 <body>
 
-  <h2>WebdEX Dashboard</h2>
+  <h1>💡 WEbdEX Dashboard</h1>
+  <button id="connectBtn">Conectar Carteira</button>
+  <div class="info" id="walletAddress"></div>
 
-  <div class="card">
-    <button id="connectBtn">Conectar Carteira</button>
-    <button id="disconnectBtn" style="display:none;">Desconectar</button>
-    <div id="status">Carteira não conectada</div>
-    <div id="addressDisplay"></div>
-  </div>
-
-  <div class="card">
-    <h3>Saldo de Gás</h3>
-    <p id="gasAmount">--</p>
-  </div>
+  <div class="info">🔋 Saldo de Gás: <span id="gasBalance">--</span></div>
+  <div class="info">💧 Liquidez Aplicada: <span id="liquidityBalance">--</span></div>
 
   <script>
-    const connectBtn = document.getElementById("connectBtn");
-    const disconnectBtn = document.getElementById("disconnectBtn");
-    const addressDisplay = document.getElementById("addressDisplay");
-    const status = document.getElementById("status");
-    const gasAmountElement = document.getElementById("gasAmount");
+    const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+
+    const managerABI = [
+      "function getGasBalance(address user) view returns (uint256)",
+      "function getLiquidity(address user) view returns (uint256)"
+    ];
 
     let provider;
     let signer;
-    let address;
-
-    const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-
-    const abi = [
-      {
-        "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
-        "name": "getBotInfo",
-        "outputs": [
-          { "internalType": "uint256", "name": "gasAmount", "type": "uint256" },
-          { "internalType": "uint256", "name": "polyAmount", "type": "uint256" },
-          { "internalType": "address", "name": "tokenAddress", "type": "address" },
-          { "internalType": "address", "name": "router", "type": "address" },
-          { "internalType": "uint256", "name": "webdexAmount", "type": "uint256" },
-          { "internalType": "uint256", "name": "liquidityAmount", "type": "uint256" },
-          { "internalType": "uint256", "name": "lastTrade", "type": "uint256" },
-          { "internalType": "uint256", "name": "profitDay", "type": "uint256" },
-          { "internalType": "uint256", "name": "profitWeek", "type": "uint256" },
-          { "internalType": "uint256", "name": "profitMonth", "type": "uint256" },
-          { "internalType": "bool", "name": "isActive", "type": "bool" }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      }
-    ];
+    let contract;
 
     async function connectWallet() {
       try {
@@ -101,53 +56,35 @@
           return;
         }
 
+        await ethereum.request({ method: 'eth_requestAccounts' });
         provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
         signer = provider.getSigner();
-        address = await signer.getAddress();
+        const userAddress = await signer.getAddress();
+        document.getElementById("walletAddress").innerText = "Carteira: " + userAddress;
 
-        addressDisplay.innerText = "Conectado: " + address;
-        connectBtn.style.display = "none";
-        disconnectBtn.style.display = "inline-block";
-        status.innerText = "Carteira conectada";
+        contract = new ethers.Contract(managerAddress, managerABI, provider);
 
-        fetchGasAmount();
-      } catch (err) {
-        console.error("Erro ao conectar:", err);
-        alert("Erro ao conectar à MetaMask.");
+        loadBalances(userAddress);
+      } catch (error) {
+        console.error("Erro ao conectar:", error);
       }
     }
 
-    function disconnectWallet() {
-      provider = null;
-      signer = null;
-      address = null;
-      connectBtn.style.display = "inline-block";
-      disconnectBtn.style.display = "none";
-      addressDisplay.innerText = "";
-      status.innerText = "Carteira desconectada";
-      gasAmountElement.innerText = "--";
-    }
-
-    async function fetchGasAmount() {
+    async function loadBalances(address) {
       try {
-        const contract = new ethers.Contract(managerAddress, abi, signer);
-        const info = await contract.getBotInfo(address);
+        const gas = await contract.getGasBalance(address);
+        const liquidity = await contract.getLiquidity(address);
 
-        console.log("Resultado completo getBotInfo:", info);
-
-        const gasBN = info[0];
-        const gas = ethers.utils.formatUnits(gasBN, 18); // se usar 18 casas
-        gasAmountElement.innerText = parseFloat(gas).toFixed(3);
-      } catch (err) {
-        console.error("Erro ao buscar saldo de gás:", err);
-        gasAmountElement.innerText = "Erro ao buscar";
+        document.getElementById("gasBalance").innerText = (gas / 1e18).toFixed(3) + " MATIC";
+        document.getElementById("liquidityBalance").innerText = (liquidity / 1e18).toFixed(3) + " MATIC";
+      } catch (error) {
+        console.error("Erro ao buscar saldos:", error);
+        document.getElementById("gasBalance").innerText = "Erro";
+        document.getElementById("liquidityBalance").innerText = "Erro";
       }
     }
 
-    connectBtn.onclick = connectWallet;
-    disconnectBtn.onclick = disconnectWallet;
+    document.getElementById("connectBtn").addEventListener("click", connectWallet);
   </script>
-
 </body>
 </html>
