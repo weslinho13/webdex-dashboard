@@ -1,203 +1,145 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>WEbdEX Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0e0e1a;
-      color: #e0e0ff;
-      display: flex;
-    }
-    .sidebar {
-      width: 220px;
-      background: #14142b;
-      height: 100vh;
-      padding-top: 20px;
-      position: fixed;
-      top: 0;
-      left: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .sidebar button {
-      background: none;
-      border: none;
-      color: #c0c0ff;
-      padding: 12px 20px;
-      text-align: left;
-      font-size: 15px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .sidebar button:hover, .sidebar button.active {
-      background: #292950;
-      color: #fff;
-    }
-    .content {
-      margin-left: 220px;
-      padding: 20px;
-      width: 100%;
-    }
-    .card {
-      background: #1c1c35;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    }
-    .card h3 {
-      margin-top: 0;
-      color: #8ab4ff;
-    }
-    .btn {
-      background: #4a4adf;
-      border: none;
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 5px;
-    }
-    .btn:hover {
-      background: #6262f0;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Dashboard WEbdEX</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px;}
+  h1 { text-align: center; }
+  .button { padding: 10px 20px; margin: 5px; background: #1f1f1f; border: 1px solid #fff; cursor: pointer; }
+  .section { margin-bottom: 30px; padding: 15px; border: 1px solid #444; border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #444; padding: 8px; text-align: left; }
+</style>
 </head>
 <body>
-  <div class="sidebar">
-    <button class="active" onclick="showTab('dashboard')">📊 Dashboard</button>
-    <button onclick="showTab('broker')">💱 Broker</button>
-    <button onclick="showTab('bots')">🤖 Bots</button>
-    <button onclick="showTab('subcontas')">📂 Subcontas</button>
-    <button onclick="showTab('automacao')">⚡ Automação</button>
-    <button onclick="showTab('relatorios')">📈 Relatórios</button>
-    <button onclick="connectWallet()" id="walletBtn">🔌 Conectar Carteira</button>
-  </div>
 
-  <div class="content">
-    <!-- Dashboard -->
-    <div id="dashboard" class="tab">
-      <div class="card">
-        <h3>Resumo</h3>
-        <p><b>Carteira:</b> <span id="walletAddress">desconectada</span></p>
-        <p><b>Saldo Gás:</b> <span id="saldoGas">0</span></p>
-        <p><b>Saldo Pass:</b> <span id="saldoPass">0</span></p>
-        <p><b>Liquidez:</b> <span id="saldoLiq">0</span></p>
-      </div>
-    </div>
+<h1>WEbdEX Dashboard</h1>
 
-    <!-- Broker -->
-    <div id="broker" class="tab" style="display:none;">
-      <div class="card">
-        <h3>Gerenciamento de Broker</h3>
-        <button class="btn" onclick="addGas()">Adicionar Gás</button>
-        <button class="btn" onclick="removeGas()">Remover Gás</button>
-        <button class="btn" onclick="addPass()">Adicionar Pass</button>
-        <button class="btn" onclick="removePass()">Remover Pass</button>
-      </div>
-    </div>
+<div class="section">
+  <button class="button" id="connectWallet">Conectar Carteira</button>
+  <button class="button" id="disconnectWallet">Desconectar Carteira</button>
+  <p>Carteira: <span id="walletAddress">Não conectada</span></p>
+</div>
 
-    <!-- Bots -->
-    <div id="bots" class="tab" style="display:none;">
-      <div class="card">
-        <h3>Controle de Bots</h3>
-        <button class="btn" onclick="startBot()">Iniciar Bot</button>
-        <button class="btn" onclick="pauseBot()">Pausar Bot</button>
-        <button class="btn" onclick="stopBot()">Encerrar Bot</button>
-      </div>
-    </div>
+<div class="section">
+  <h2>Saldos</h2>
+  <p>Saldo de Gás: <span id="gasBalance">0</span></p>
+  <p>Saldo de Pass/WebdEX: <span id="passBalance">0</span></p>
+  <p>Liquidez Total: <span id="totalLiquidity">0</span></p>
+</div>
 
-    <!-- Subcontas -->
-    <div id="subcontas" class="tab" style="display:none;">
-      <div class="card">
-        <h3>Gerenciar Subcontas</h3>
-        <button class="btn" onclick="createSub()">Criar Subconta</button>
-        <button class="btn" onclick="listSubs()">Listar Subcontas</button>
-      </div>
-    </div>
+<div class="section">
+  <h2>Subcontas</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nome</th>
+        <th>Liquidez</th>
+      </tr>
+    </thead>
+    <tbody id="subAccountsTable"></tbody>
+  </table>
+</div>
 
-    <!-- Automação -->
-    <div id="automacao" class="tab" style="display:none;">
-      <div class="card">
-        <h3>Rebalanceamento / Automação</h3>
-        <button class="btn" onclick="rebalance()">Rebalancear</button>
-        <button class="btn" onclick="autoToggle()">Ativar/Desativar Automação</button>
-      </div>
-    </div>
+<div class="section">
+  <h2>PnL Diário</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Lucro/Prejuízo (R$)</th>
+      </tr>
+    </thead>
+    <tbody id="pnlTable"></tbody>
+  </table>
+</div>
 
-    <!-- Relatórios -->
-    <div id="relatorios" class="tab" style="display:none;">
-      <div class="card">
-        <h3>Relatórios de PnL</h3>
-        <canvas id="pnlChart" height="100"></canvas>
-      </div>
-    </div>
-  </div>
+<script>
+const MANAGER_ADDRESS = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+const MANAGER_ABI = [ /* Cole aqui o ABI completo do WEbdEXManagerV4 */ ];
 
-  <script>
-    let provider, signer, contract;
-    const MANAGER_ADDRESS = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-    const MANAGER_ABI = [] // TODO: inserir ABI real aqui
+let provider;
+let signer;
+let managerContract;
 
-    async function connectWallet() {
-      if (!window.ethereum) return alert("MetaMask não encontrada");
-      provider = new ethers.providers.Web3Provider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      signer = provider.getSigner();
-      const addr = await signer.getAddress();
-      document.getElementById("walletAddress").innerText = addr;
-      document.getElementById("walletBtn").innerText = "🔌 Conectado";
-      contract = new ethers.Contract(MANAGER_ADDRESS, MANAGER_ABI, signer);
-      // TODO: carregar saldos reais do contrato
+async function connectWallet() {
+    if(window.ethereum) {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        const address = await signer.getAddress();
+        document.getElementById("walletAddress").innerText = address;
+        managerContract = new ethers.Contract(MANAGER_ADDRESS, MANAGER_ABI, signer);
+        loadBalances();
+        loadSubAccounts();
+        loadPnL();
+    } else {
+        alert("Instale o MetaMask!");
     }
+}
 
-    function showTab(tab) {
-      document.querySelectorAll('.tab').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.sidebar button').forEach(btn => btn.classList.remove('active'));
-      document.getElementById(tab).style.display = 'block';
-      event.target.classList.add('active');
+function disconnectWallet() {
+    document.getElementById("walletAddress").innerText = "Não conectada";
+    document.getElementById("gasBalance").innerText = "0";
+    document.getElementById("passBalance").innerText = "0";
+    document.getElementById("totalLiquidity").innerText = "0";
+    document.getElementById("subAccountsTable").innerHTML = "";
+    document.getElementById("pnlTable").innerHTML = "";
+    provider = null;
+    signer = null;
+    managerContract = null;
+}
+
+async function loadBalances() {
+    try {
+        const gas = await managerContract.gasBalance();
+        const pass = await managerContract.passBalance();
+        document.getElementById("gasBalance").innerText = ethers.utils.formatUnits(gas, 18);
+        document.getElementById("passBalance").innerText = ethers.utils.formatUnits(pass, 18);
+    } catch(err) {
+        console.error(err);
     }
+}
 
-    // --- Funções de Broker ---
-    async function addGas() { alert("TODO: addGas()"); }
-    async function removeGas() { alert("TODO: removeGas()"); }
-    async function addPass() { alert("TODO: addPass()"); }
-    async function removePass() { alert("TODO: removePass()"); }
+async function loadSubAccounts() {
+    try {
+        const wallet = await signer.getAddress();
+        const userInfo = await managerContract.getInfoUser({ from: wallet });
+        const tableBody = document.getElementById("subAccountsTable");
+        tableBody.innerHTML = "";
+        let totalLiquidity = 0;
+        userInfo.Subcontas.forEach(sub => {
+            let subLiquidity = sub.estrategias.reduce((sum, strat) => sum + Number(strat.saldo.reduce((s, b) => s + Number(b.valor),0)),0);
+            totalLiquidity += subLiquidity;
+            let row = `<tr><td>${sub.id}</td><td>${sub.nome}</td><td>${subLiquidity}</td></tr>`;
+            tableBody.innerHTML += row;
+        });
+        document.getElementById("totalLiquidity").innerText = totalLiquidity;
+    } catch(err) {
+        console.error(err);
+    }
+}
 
-    // --- Bots ---
-    function startBot() { alert("TODO: startBot()"); }
-    function pauseBot() { alert("TODO: pauseBot()"); }
-    function stopBot() { alert("TODO: stopBot()"); }
+async function loadPnL() {
+    // Exemplo: gerar PnL fake. Depois pode puxar dados reais do contrato.
+    const pnlTable = document.getElementById("pnlTable");
+    pnlTable.innerHTML = "";
+    let today = new Date();
+    for(let i=6; i>=0; i--){
+        let date = new Date(today);
+        date.setDate(today.getDate() - i);
+        let value = (Math.random()*200-100).toFixed(2); // lucro/prejuízo aleatório
+        let row = `<tr><td>${date.toLocaleDateString()}</td><td style="color:${value>=0?'green':'red'}">${value}</td></tr>`;
+        pnlTable.innerHTML += row;
+    }
+}
 
-    // --- Subcontas ---
-    function createSub() { alert("TODO: createSub()"); }
-    function listSubs() { alert("TODO: listSubs()"); }
+document.getElementById("connectWallet").addEventListener("click", connectWallet);
+document.getElementById("disconnectWallet").addEventListener("click", disconnectWallet);
+</script>
 
-    // --- Automação ---
-    function rebalance() { alert("TODO: rebalance()"); }
-    function autoToggle() { alert("TODO: autoToggle()"); }
-
-    // --- Gráfico PnL ---
-    const ctx = document.getElementById('pnlChart');
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'],
-        datasets: [{
-          label: 'PnL (MATIC)',
-          data: [12, -5, 3, 8, -2, 6, 9],
-          backgroundColor: function(context){
-            return context.raw >= 0 ? 'rgba(0,200,120,0.7)' : 'rgba(200,0,80,0.7)';
-          }
-        }]
-      }
-    });
-  </script>
 </body>
 </html>
