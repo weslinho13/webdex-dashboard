@@ -1,386 +1,138 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>WEbdEX Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; }
+button { margin: 5px; padding: 10px 20px; border-radius: 8px; border: none; background: #1e88e5; color: #fff; cursor: pointer; }
+input { padding: 5px; margin: 5px; border-radius: 5px; border: 1px solid #ccc; }
+.container { margin-top: 20px; }
+h2 { color: #00e676; }
+</style>
+</head>
+<body>
 
-import "../interface/INetwork.sol";
-import "../interface/ISubAccount.sol";
-import "../interface/IFactory.sol";
-import "../interface/IStrategy.sol";
-import "../utils/LPToken.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+<h1>WEbdEX Manager V4</h1>
+<div>
+    <button id="connectWallet">Conectar Carteira</button>
+    <button id="disconnectWallet">Desconectar Carteira</button>
+</div>
 
-contract WEbdEXManagerV4 {
-    IFactory public factory;
-    mapping(address => User) internal users;
-    struct User {
-        address manager;
-        uint256 gasBalance;
-        uint256 passBalance;
-        uint256 bonusBalance;
-        bool status;
+<div class="container">
+    <h2>Endereço Conectado:</h2>
+    <p id="userAddress">Nenhum</p>
+
+    <h2>Saldos</h2>
+    <p>Gás: <span id="gasBalance">0</span> MATIC</p>
+    <p>WebdEX (Pass): <span id="passBalance">0</span></p>
+    <p>Bônus: <span id="bonusBalance">0</span></p>
+</div>
+
+<div class="container">
+    <h2>Operações</h2>
+    <input type="number" id="amountGas" placeholder="Quantidade de Gas">
+    <button onclick="addGas()">Adicionar Gas</button>
+    <button onclick="removeGas()">Remover Gas</button>
+    <br>
+    <input type="number" id="amountPass" placeholder="Quantidade de WebdEX">
+    <button onclick="addPass()">Adicionar WebdEX</button>
+    <button onclick="removePass()">Remover WebdEX</button>
+</div>
+
+<script>
+// === Configurações ===
+const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+
+// ABI corrigida (resumida e funcional)
+const managerABI = [
+    {"inputs":[{"internalType":"address","name":"_factory","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"balance","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"},{"indexed":false,"internalType":"bool","name":"increase","type":"bool"},{"indexed":false,"internalType":"bool","name":"is_operation","type":"bool"}],"name":"BalanceGas","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"balance","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"},{"indexed":false,"internalType":"bool","name":"increase","type":"bool"},{"indexed":false,"internalType":"bool","name":"is_operation","type":"bool"}],"name":"BalancePass","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"balance","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"},{"indexed":false,"internalType":"bool","name":"increase","type":"bool"},{"indexed":false,"internalType":"bool","name":"is_operation","type":"bool"}],"name":"BalanceBonus","type":"event"},
+    {"inputs":[],"name":"gasBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"passBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"bonusBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"gasAdd","outputs":[],"stateMutability":"payable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"gasRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passRemove","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
+
+// Variáveis
+let provider;
+let signer;
+let contract;
+
+// === Conectar carteira ===
+document.getElementById('connectWallet').onclick = async () => {
+    if (window.ethereum) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        document.getElementById('userAddress').innerText = await signer.getAddress();
+        contract = new ethers.Contract(managerAddress, managerABI, signer);
+        updateBalances();
+    } else {
+        alert("MetaMask não encontrada!");
     }
+};
 
-    struct UserDisplay {
-        address manager;
-        uint256 gasBalance;
-        uint256 passBalance;
-        uint256 bonusBalance;
-        ISubAccount.SubAccountsDisplay[] SubAccounts;
-    }
+document.getElementById('disconnectWallet').onclick = () => {
+    provider = null;
+    signer = null;
+    contract = null;
+    document.getElementById('userAddress').innerText = "Nenhum";
+    document.getElementById('gasBalance').innerText = "0";
+    document.getElementById('passBalance').innerText = "0";
+    document.getElementById('bonusBalance').innerText = "0";
+};
 
-    mapping(address => Coin) internal listCoins;
-    struct Coin {
-        bool status;
-        LPToken lp;
-    }
+// === Atualizar saldos ===
+async function updateBalances() {
+    if (!contract) return;
+    const gas = await contract.gasBalance();
+    const pass = await contract.passBalance();
+    const bonus = await contract.bonusBalance();
+    document.getElementById('gasBalance').innerText = ethers.utils.formatEther(gas);
+    document.getElementById('passBalance').innerText = pass;
+    document.getElementById('bonusBalance').innerText = bonus;
+}
 
-    event Register(address indexed user, address indexed manager);
+// === Funções de operação ===
+async function addGas() {
+    const amount = document.getElementById('amountGas').value;
+    if (!amount) return alert("Informe o valor");
+    const tx = await contract.gasAdd({ value: ethers.utils.parseEther(amount) });
+    await tx.wait();
+    updateBalances();
+}
 
-    event BalanceGas(
-        address indexed user,
-        uint256 balance,
-        uint256 value,
-        bool increase,
-        bool is_operation
-    );
+async function removeGas() {
+    const amount = document.getElementById('amountGas').value;
+    if (!amount) return alert("Informe o valor");
+    const tx = await contract.gasRemove(ethers.utils.parseEther(amount));
+    await tx.wait();
+    updateBalances();
+}
 
-    event BalancePass(
-        address indexed user,
-        uint256 balance,
-        uint256 value,
-        bool increase,
-        bool is_operation
-    );
+async function addPass() {
+    const amount = document.getElementById('amountPass').value;
+    if (!amount) return alert("Informe o valor");
+    const tx = await contract.passAdd(amount);
+    await tx.wait();
+    updateBalances();
+}
 
-    event BalanceBonus(
-        address indexed user,
-        uint256 balance,
-        uint256 value,
-        bool increase,
-        bool is_operation
-    );
+async function removePass() {
+    const amount = document.getElementById('amountPass').value;
+    if (!amount) return alert("Informe o valor");
+    const tx = await contract.passRemove(amount);
+    await tx.wait();
+    updateBalances();
+}
 
-    constructor(IFactory _factory) {
-        factory = _factory;
-    }
-
-    modifier onlyPayments() {
-        IFactory.Bot memory botInfo = factory.getBotInfo(address(this));
-        require(
-            botInfo.paymentsAddress == msg.sender,
-            "You must the WEbdEXPaymentsV4"
-        );
-        _;
-    }
-
-    modifier onlyOwner() {
-        IFactory.Bot memory botInfo = factory.getBotInfo(address(this));
-        require(
-            botInfo.owner == msg.sender || address(factory) == msg.sender,
-            "Ownable: caller is not the owner nor the factory"
-        );
-        _;
-    }
-
-    modifier onlyRegistered() {
-        require(users[msg.sender].status, "User not registered");
-        _;
-    }
-
-    function register(address manager, string memory name) public {
-        if (manager != address(0)) {
-            require(users[manager].status, "Unregistered manager");
-        }
-
-        require(!users[msg.sender].status, "User already registered");
-        users[msg.sender] = User(manager, 0, 0, 0, true);
-        emit Register(msg.sender, manager);
-
-        _createSubAccount(msg.sender, name);
-    }
-
-    function subAccount() internal view returns (ISubAccount) {
-        address subAccountAddress = factory
-            .getBotInfo(address(this))
-            .subAccountAddress;
-        return ISubAccount(subAccountAddress);
-    }
-
-    function _createSubAccount(address user, string memory name) internal {
-        subAccount().create(user, name);
-    }
-
-    function createSubAccount(string[] memory names) public onlyRegistered {
-        for (uint256 i = 0; i < names.length; i++) {
-            _createSubAccount(msg.sender, names[i]);
-        }
-    }
-
-    function getInfoUser() public view returns (UserDisplay memory) {
-        ISubAccount SubAccount = subAccount();
-        ISubAccount.SubAccounts[] memory subAccounts = SubAccount
-            .getSubAccounts(address(this), msg.sender);
-
-        uint256 subAccountCount = subAccounts.length;
-        ISubAccount.SubAccountsDisplay[]
-            memory accounts = new ISubAccount.SubAccountsDisplay[](
-                subAccountCount
-            );
-
-        for (uint256 i = 0; i < subAccountCount; i++) {
-            address[] memory _strategies = SubAccount.getStrategies(
-                address(this),
-                msg.sender,
-                subAccounts[i].id
-            );
-
-            ISubAccount.StrategyDisplay[]
-                memory strategies = new ISubAccount.StrategyDisplay[](
-                    _strategies.length
-                );
-
-            for (uint256 j = 0; j < _strategies.length; j++) {
-                ISubAccount.BalanceStrategy[] memory balances = SubAccount
-                    .getBalances(
-                        address(this),
-                        msg.sender,
-                        subAccounts[i].id,
-                        _strategies[j]
-                    );
-                strategies[j] = ISubAccount.StrategyDisplay(
-                    _strategies[j],
-                    balances
-                );
-            }
-            accounts[i] = ISubAccount.SubAccountsDisplay(
-                subAccounts[i].id,
-                subAccounts[i].name,
-                strategies
-            );
-        }
-
-        return
-            UserDisplay(
-                users[msg.sender].manager,
-                users[msg.sender].gasBalance,
-                users[msg.sender].passBalance,
-                users[msg.sender].bonusBalance,
-                accounts
-            );
-    }
-
-    function getStrategies() public view returns (IStrategy.Strategy[] memory) {
-        return strategy().getStrategies(address(this));
-    }
-
-    function strategy() internal view returns (IStrategy) {
-        address strategyAddress = factory
-            .getBotInfo(address(this))
-            .strategyAddress;
-        return IStrategy(strategyAddress);
-    }
-
-    function _lpMint(
-        address to,
-        address coin,
-        uint256 amount
-    ) internal returns (address) {
-        listCoins[coin].lp.mint(to, amount);
-        return address(listCoins[coin].lp);
-    }
-
-    function LiquidityAdd(
-        string[] memory accountId,
-        address strategyToken,
-        address coin,
-        uint256 amount
-    ) public onlyRegistered {
-        require(
-            strategy().findStrategy(address(this), strategyToken).isActive,
-            "Strategy not found"
-        );
-        require(coin != address(0), "Invalid contract address");
-
-        ERC20 erc20 = ERC20(coin);
-        if (!listCoins[coin].status) {
-            listCoins[coin] = Coin(
-                true,
-                new LPToken(
-                    erc20.name(),
-                    erc20.symbol(),
-                    erc20.decimals(),
-                    coin
-                )
-            );
-        }
-
-        ISubAccount SubAccount = subAccount();
-        for (uint256 i = 0; i < accountId.length; i++) {
-            SubAccount.addLiquidity(
-                msg.sender,
-                accountId[i],
-                strategyToken,
-                amount / accountId.length,
-                coin
-            );
-        }
-
-        erc20.transferFrom(msg.sender, address(SubAccount), amount);
-        _lpMint(msg.sender, coin, amount);
-    }
-
-    function LiquidityRemove(
-        string[] memory accountId,
-        address strategyToken,
-        address coin,
-        uint256 amount
-    ) public onlyRegistered {
-        require(
-            strategy().findStrategy(address(this), strategyToken).isActive,
-            "Strategy not found"
-        );
-        require(coin != address(0), "Invalid contract address");
-
-        for (uint256 i = 0; i < accountId.length; i++) {
-            subAccount().removeLiquidity(
-                msg.sender,
-                accountId[i],
-                strategyToken,
-                amount,
-                coin
-            );
-        }
-
-        ERC20 erc20 = ERC20(coin);
-        listCoins[coin].lp.burnFrom(msg.sender, amount * accountId.length);
-        erc20.transfer(msg.sender, amount * accountId.length);
-    }
-
-    function togglePause(
-        string[] memory accountId,
-        address strategyToken,
-        address coin,
-        bool paused
-    ) public onlyRegistered {
-        require(
-            strategy().findStrategy(address(this), strategyToken).isActive,
-            "Strategy not found"
-        );
-        require(coin != address(0), "Invalid contract address");
-
-        for (uint256 i = 0; i < accountId.length; i++) {
-            subAccount().togglePause(
-                msg.sender,
-                accountId[i],
-                strategyToken,
-                coin,
-                paused
-            );
-        }
-    }
-
-    function gasRemove(uint256 amount) public onlyRegistered {
-        require(
-            users[msg.sender].gasBalance >= amount,
-            "Insufficient gas balance"
-        );
-
-        users[msg.sender].gasBalance -= amount;
-
-        payable(msg.sender).transfer(amount);
-
-        emit BalanceGas(
-            msg.sender,
-            users[msg.sender].gasBalance,
-            amount,
-            false,
-            false
-        );
-    }
-
-    function gasAdd() public payable onlyRegistered {
-        require(msg.value >= 0, "Insufficient value");
-        users[msg.sender].gasBalance += msg.value;
-
-        emit BalanceGas(
-            msg.sender,
-            users[msg.sender].gasBalance,
-            msg.value,
-            true,
-            false
-        );
-    }
-
-    function gasBalance() public view returns (uint256) {
-        return users[msg.sender].gasBalance;
-    }
-
-    function passAdd(uint256 amount) public onlyRegistered {
-        users[msg.sender].passBalance += amount;
-        address token = factory.getBotInfo(address(this)).tokenPassAddress;
-
-        ERC20 erc20 = ERC20(token);
-        erc20.transferFrom(msg.sender, address(this), amount);
-
-        emit BalancePass(
-            msg.sender,
-            users[msg.sender].passBalance,
-            amount,
-            true,
-            false
-        );
-    }
-
-    function passRemove(uint256 amount) public onlyRegistered {
-        require(
-            users[msg.sender].passBalance >= amount,
-            "Insufficient pass balance"
-        );
-        users[msg.sender].passBalance -= amount;
-        address token = factory.getBotInfo(address(this)).tokenPassAddress;
-
-        ERC20 erc20 = ERC20(token);
-        erc20.transfer(msg.sender, amount);
-
-        emit BalancePass(
-            msg.sender,
-            users[msg.sender].passBalance,
-            amount,
-            false,
-            false
-        );
-    }
-
-    function bonusAdd(uint256 amount, address user) public onlyOwner {
-        require(users[user].status, "User not registered");
-        users[user].bonusBalance += amount;
-        emit BalanceBonus(user, users[user].bonusBalance, amount, true, false);
-    }
-
-    function bonusRemove(uint256 amount, address user) public onlyOwner {
-        require(users[user].status, "User not registered");
-        require(
-            users[user].bonusBalance >= amount,
-            "Insufficient pass balance"
-        );
-        users[user].bonusBalance -= amount;
-        emit BalanceBonus(user, users[user].bonusBalance, amount, false, false);
-    }
-
-    function networkBalance(address coin) public view returns (uint256) {
-        address networkAddress = factory
-            .getBotInfo(address(this))
-            .networkAddress;
-        return
-            INetwork(networkAddress).getBalance(
-                address(this),
-                coin,
-                msg.sender
-            );
-    }
-
-    function networkWithdraw(
-        address coin,
-        uint256 amount
-    )
-::contentReference[oaicite:5]{index=5}
- 
+</script>
+</body>
+</html>
