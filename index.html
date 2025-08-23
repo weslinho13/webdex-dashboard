@@ -69,7 +69,7 @@
     <thead>
       <tr>
         <th>Data</th>
-        <th>Lucro/Prejuízo (R$)</th>
+        <th>Lucro/Prejuízo</th>
       </tr>
     </thead>
     <tbody id="pnlTable"></tbody>
@@ -79,55 +79,64 @@
 <script>
 const MANAGER_ADDRESS = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
 
-// ABI completa do WEbdEXManagerV4
-const MANAGER_ABI = [ /* cole aqui a ABI completa que você me enviou */ ];
+// Cole aqui sua ABI completa
+const MANAGER_ABI = [ /* ABI completa que você me enviou */ ];
 
 let provider, signer, managerContract;
 
 async function connectWallet() {
-    if(window.ethereum){
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        signer = provider.getSigner();
-        const address = await signer.getAddress();
-        document.getElementById("walletAddress").innerText = address;
-        managerContract = new ethers.Contract(MANAGER_ADDRESS, MANAGER_ABI, signer);
-        loadBalances();
-        loadSubAccounts();
-        loadPnL();
-    } else alert("Instale MetaMask!");
+    if (window.ethereum) {
+        try {
+            await window.ethereum.request({ method: 'eth_requestAccounts' });
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            const address = await signer.getAddress();
+            document.getElementById("walletAddress").innerText = address;
+
+            managerContract = new ethers.Contract(MANAGER_ADDRESS, MANAGER_ABI, signer);
+
+            loadBalances();
+            loadSubAccounts();
+            loadPnL();
+        } catch (err) {
+            console.error("Erro ao conectar carteira:", err);
+            alert("Falha ao conectar MetaMask!");
+        }
+    } else {
+        alert("Instale MetaMask para continuar.");
+    }
 }
 
 function disconnectWallet() {
     document.getElementById("walletAddress").innerText = "Não conectada";
+    provider = signer = managerContract = null;
     document.getElementById("gasBalance").innerText = "0";
     document.getElementById("passBalance").innerText = "0";
     document.getElementById("totalLiquidity").innerText = "0";
     document.getElementById("subAccountsTable").innerHTML = "";
     document.getElementById("pnlTable").innerHTML = "";
-    provider = signer = managerContract = null;
 }
 
-// Saldos
-async function loadBalances(){
+// Carregar saldos
+async function loadBalances() {
+    if(!managerContract) return;
     try{
         const gas = await managerContract.gasBalance();
         const pass = await managerContract.passBalance();
         const userInfo = await managerContract.getInfoUser(await signer.getAddress());
         let totalLiquidity = 0;
         userInfo.Subcontas.forEach(sub => {
-            sub.estrategias.forEach(strat => {
-                strat.saldo.forEach(s => { totalLiquidity += Number(s.valor); });
-            });
+            sub.estrategias.forEach(strat => strat.saldo.forEach(s => totalLiquidity += Number(s.valor)));
         });
         document.getElementById("gasBalance").innerText = ethers.utils.formatUnits(gas,18);
         document.getElementById("passBalance").innerText = ethers.utils.formatUnits(pass,18);
         document.getElementById("totalLiquidity").innerText = totalLiquidity;
-    }catch(err){ console.error(err); }
+    } catch(err){ console.error(err); }
 }
 
-// Subcontas
+// Carregar subcontas
 async function loadSubAccounts(){
+    if(!managerContract) return;
     try{
         const wallet = await signer.getAddress();
         const userInfo = await managerContract.getInfoUser(wallet);
@@ -135,43 +144,44 @@ async function loadSubAccounts(){
         tableBody.innerHTML = "";
         userInfo.Subcontas.forEach(sub => {
             let subLiquidity = 0;
-            sub.estrategias.forEach(strat => strat.saldo.forEach(s => subLiquidity+=Number(s.valor)));
-            let status = sub.estrategias.some(strat=>strat.paused)?'Pausado':'Ativo';
+            sub.estrategias.forEach(strat => strat.saldo.forEach(s => subLiquidity += Number(s.valor)));
+            let status = sub.estrategias.some(strat => strat.paused) ? 'Pausado' : 'Ativo';
             let row = `<tr>
                         <td>${sub.id}</td>
                         <td>${sub.nome}</td>
                         <td>${subLiquidity}</td>
                         <td>${status}</td>
-                        <td><button class="button" onclick="togglePause(['${sub.id}'], true)">Pausar</button>
-                            <button class="button" onclick="togglePause(['${sub.id}'], false)">Retomar</button></td>
+                        <td>
+                          <button class="button" onclick="togglePause(['${sub.id}'], true)">Pausar</button>
+                          <button class="button" onclick="togglePause(['${sub.id}'], false)">Retomar</button>
+                        </td>
                        </tr>`;
             tableBody.innerHTML += row;
         });
-    }catch(err){ console.error(err); }
+    } catch(err){ console.error(err); }
 }
 
-// Controle Gás e Pass
+// Funções Gás/Pass
 async function addGas(){ try{ const value = ethers.utils.parseEther(document.getElementById("addGasAmount").value||"0"); const tx = await managerContract.gasAdd({value}); await tx.wait(); alert("Gás adicionado!"); loadBalances(); }catch(err){console.error(err);} }
 async function removeGas(){ try{ const value = ethers.utils.parseEther(document.getElementById("addGasAmount").value||"0"); const tx = await managerContract.gasRemove(value); await tx.wait(); alert("Gás removido!"); loadBalances(); }catch(err){console.error(err);} }
 async function addPass(){ try{ const value = ethers.utils.parseUnits(document.getElementById("addPassAmount").value||"0",18); const tx = await managerContract.passAdd(value); await tx.wait(); alert("Pass adicionado!"); loadBalances(); }catch(err){console.error(err);} }
 async function removePass(){ try{ const value = ethers.utils.parseUnits(document.getElementById("addPassAmount").value||"0",18); const tx = await managerContract.passRemove(value); await tx.wait(); alert("Pass removido!"); loadBalances(); }catch(err){console.error(err);} }
 
-// Liquidez
-async function addLiquidity(){ try{ const amount = ethers.utils.parseUnits(document.getElementById("liqAmount").value||"0",18); const subIds = []; const token = '0x...'; // token address da estratégia const coin = '0x...'; // moeda utilizada await managerContract.LiquidityAdd(subIds, token, coin, amount); await tx.wait(); alert("Liquidez adicionada!"); loadBalances(); }catch(err){console.error(err);} }
-async function removeLiquidity(){ try{ const amount = ethers.utils.parseUnits(document.getElementById("liqAmount").value||"0",18); const subIds = []; const token = '0x...'; const coin = '0x...'; await managerContract.LiquidityRemove(subIds, token, coin, amount); await tx.wait(); alert("Liquidez removida!"); loadBalances(); }catch(err){console.error(err);} }
+// Criar Subconta
+async function createSubAccount(){ try{ const name = document.getElementById("newSubName").value; if(!name) return alert("Informe o Nome!"); const tx = await managerContract.criarSubconta([name]); await tx.wait(); alert("Subconta criada!"); loadSubAccounts(); }catch(err){console.error(err);} }
 
-// Criar subconta
-async function createSubAccount(){ try{ const id = document.getElementById("newSubId").value; const name = document.getElementById("newSubName").value; if(!id || !name) return alert("Informe ID e Nome!"); const tx = await managerContract.criarSubconta([name]); await tx.wait(); alert("Subconta criada!"); loadSubAccounts(); }catch(err){ console.error(err);} }
-
-// Pausar/retomar
+// Pausar/Retomar
 async function togglePause(accountIds, paused){ try{ const token = '0x...'; const coin = '0x...'; await managerContract.togglePause(accountIds, token, coin, paused); alert(paused?'Pausado':'Retomado'); loadSubAccounts(); }catch(err){console.error(err);} }
 
+// Liquidez (preencher token/coin corretos)
+async function addLiquidity(){ try{ const amount = ethers.utils.parseUnits(document.getElementById("liqAmount").value||"0",18); const subIds = []; const token = '0x...'; const coin = '0x...'; const tx = await managerContract.LiquidityAdd(subIds, token, coin, amount); await tx.wait(); alert("Liquidez adicionada!"); loadBalances(); }catch(err){console.error(err);} }
+async function removeLiquidity(){ try{ const amount = ethers.utils.parseUnits(document.getElementById("liqAmount").value||"0",18); const subIds = []; const token = '0x...'; const coin = '0x...'; const tx = await managerContract.LiquidityRemove(subIds, token, coin, amount); await tx.wait(); alert("Liquidez removida!"); loadBalances(); }catch(err){console.error(err);} }
+
 // PnL Diário
-async function loadPnL(){ try{ const wallet = await signer.getAddress(); const userInfo = await managerContract.getInfoUser(wallet); const pnlTable = document.getElementById("pnlTable"); pnlTable.innerHTML = ""; const today = new Date(); for(let i=6;i>=0;i--){ let date = new Date(today); date.setDate(today.getDate()-i); let value = 0; userInfo.Subcontas.forEach(sub=>sub.estrategias.forEach(strat=>strat.saldo.forEach(s=>value+=Number(s.valor)))); let row = `<tr><td>${date.toLocaleDateString()}</td><td style="color:${value>=0?'green':'red'}">${value.toFixed(2)}</td></tr>`; pnlTable.innerHTML += row; } }catch(err){console.error(err);} }
+async function loadPnL(){ if(!managerContract) return; try{ const wallet = await signer.getAddress(); const userInfo = await managerContract.getInfoUser(wallet); const pnlTable = document.getElementById("pnlTable"); pnlTable.innerHTML = ""; const today = new Date(); for(let i=6;i>=0;i--){ let date = new Date(today); date.setDate(today.getDate()-i); let value = 0; userInfo.Subcontas.forEach(sub=>sub.estrategias.forEach(strat=>strat.saldo.forEach(s=>value+=Number(s.valor)))); let row = `<tr><td>${date.toLocaleDateString()}</td><td style="color:${value>=0?'green':'red'}">${value.toFixed(2)}</td></tr>`; pnlTable.innerHTML += row; } }catch(err){console.error(err);} }
 
 document.getElementById("connectWallet").addEventListener("click", connectWallet);
 document.getElementById("disconnectWallet").addEventListener("click", disconnectWallet);
-
 </script>
 </body>
 </html>
