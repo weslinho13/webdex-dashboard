@@ -1,37 +1,203 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard WEbdEX</title>
+  <title>WEbdEX Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
+      margin: 0;
       font-family: Arial, sans-serif;
-      background: #121212;
-      color: #ffffff;
-      text-align: center;
-      padding: 20px;
+      background: #0e0e1a;
+      color: #e0e0ff;
+      display: flex;
     }
-    button {
-      background: #00adb5;
-      color: white;
+    .sidebar {
+      width: 220px;
+      background: #14142b;
+      height: 100vh;
+      padding-top: 20px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sidebar button {
+      background: none;
       border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 10px;
+      color: #c0c0ff;
+      padding: 12px 20px;
+      text-align: left;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .sidebar button:hover, .sidebar button.active {
+      background: #292950;
+      color: #fff;
+    }
+    .content {
+      margin-left: 220px;
+      padding: 20px;
+      width: 100%;
+    }
+    .card {
+      background: #1c1c35;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    .card h3 {
+      margin-top: 0;
+      color: #8ab4ff;
+    }
+    .btn {
+      background: #4a4adf;
+      border: none;
+      color: #fff;
+      padding: 10px 16px;
       border-radius: 8px;
       cursor: pointer;
+      margin: 5px;
     }
-    .info {
-      margin-top: 20px;
-      font-size: 18px;
+    .btn:hover {
+      background: #6262f0;
     }
   </style>
 </head>
 <body>
+  <div class="sidebar">
+    <button class="active" onclick="showTab('dashboard')">📊 Dashboard</button>
+    <button onclick="showTab('broker')">💱 Broker</button>
+    <button onclick="showTab('bots')">🤖 Bots</button>
+    <button onclick="showTab('subcontas')">📂 Subcontas</button>
+    <button onclick="showTab('automacao')">⚡ Automação</button>
+    <button onclick="showTab('relatorios')">📈 Relatórios</button>
+    <button onclick="connectWallet()" id="walletBtn">🔌 Conectar Carteira</button>
+  </div>
 
-  <h1>💡 WEbdEX Dashboard</h1>
-  <button id="connectBtn">Conectar Carteira</button>
-  <div class="info" id="walletAddress"></div>
+  <div class="content">
+    <!-- Dashboard -->
+    <div id="dashboard" class="tab">
+      <div class="card">
+        <h3>Resumo</h3>
+        <p><b>Carteira:</b> <span id="walletAddress">desconectada</span></p>
+        <p><b>Saldo Gás:</b> <span id="saldoGas">0</span></p>
+        <p><b>Saldo Pass:</b> <span id="saldoPass">0</span></p>
+        <p><b>Liquidez:</b> <span id="saldoLiq">0</span></p>
+      </div>
+    </div>
 
-  <div class="info">🔋 Saldo de Gás: <span id="gasBalance">--</
+    <!-- Broker -->
+    <div id="broker" class="tab" style="display:none;">
+      <div class="card">
+        <h3>Gerenciamento de Broker</h3>
+        <button class="btn" onclick="addGas()">Adicionar Gás</button>
+        <button class="btn" onclick="removeGas()">Remover Gás</button>
+        <button class="btn" onclick="addPass()">Adicionar Pass</button>
+        <button class="btn" onclick="removePass()">Remover Pass</button>
+      </div>
+    </div>
+
+    <!-- Bots -->
+    <div id="bots" class="tab" style="display:none;">
+      <div class="card">
+        <h3>Controle de Bots</h3>
+        <button class="btn" onclick="startBot()">Iniciar Bot</button>
+        <button class="btn" onclick="pauseBot()">Pausar Bot</button>
+        <button class="btn" onclick="stopBot()">Encerrar Bot</button>
+      </div>
+    </div>
+
+    <!-- Subcontas -->
+    <div id="subcontas" class="tab" style="display:none;">
+      <div class="card">
+        <h3>Gerenciar Subcontas</h3>
+        <button class="btn" onclick="createSub()">Criar Subconta</button>
+        <button class="btn" onclick="listSubs()">Listar Subcontas</button>
+      </div>
+    </div>
+
+    <!-- Automação -->
+    <div id="automacao" class="tab" style="display:none;">
+      <div class="card">
+        <h3>Rebalanceamento / Automação</h3>
+        <button class="btn" onclick="rebalance()">Rebalancear</button>
+        <button class="btn" onclick="autoToggle()">Ativar/Desativar Automação</button>
+      </div>
+    </div>
+
+    <!-- Relatórios -->
+    <div id="relatorios" class="tab" style="display:none;">
+      <div class="card">
+        <h3>Relatórios de PnL</h3>
+        <canvas id="pnlChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let provider, signer, contract;
+    const MANAGER_ADDRESS = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+    const MANAGER_ABI = [] // TODO: inserir ABI real aqui
+
+    async function connectWallet() {
+      if (!window.ethereum) return alert("MetaMask não encontrada");
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      const addr = await signer.getAddress();
+      document.getElementById("walletAddress").innerText = addr;
+      document.getElementById("walletBtn").innerText = "🔌 Conectado";
+      contract = new ethers.Contract(MANAGER_ADDRESS, MANAGER_ABI, signer);
+      // TODO: carregar saldos reais do contrato
+    }
+
+    function showTab(tab) {
+      document.querySelectorAll('.tab').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.sidebar button').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(tab).style.display = 'block';
+      event.target.classList.add('active');
+    }
+
+    // --- Funções de Broker ---
+    async function addGas() { alert("TODO: addGas()"); }
+    async function removeGas() { alert("TODO: removeGas()"); }
+    async function addPass() { alert("TODO: addPass()"); }
+    async function removePass() { alert("TODO: removePass()"); }
+
+    // --- Bots ---
+    function startBot() { alert("TODO: startBot()"); }
+    function pauseBot() { alert("TODO: pauseBot()"); }
+    function stopBot() { alert("TODO: stopBot()"); }
+
+    // --- Subcontas ---
+    function createSub() { alert("TODO: createSub()"); }
+    function listSubs() { alert("TODO: listSubs()"); }
+
+    // --- Automação ---
+    function rebalance() { alert("TODO: rebalance()"); }
+    function autoToggle() { alert("TODO: autoToggle()"); }
+
+    // --- Gráfico PnL ---
+    const ctx = document.getElementById('pnlChart');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'],
+        datasets: [{
+          label: 'PnL (MATIC)',
+          data: [12, -5, 3, 8, -2, 6, 9],
+          backgroundColor: function(context){
+            return context.raw >= 0 ? 'rgba(0,200,120,0.7)' : 'rgba(200,0,80,0.7)';
+          }
+        }]
+      }
+    });
+  </script>
+</body>
+</html>
