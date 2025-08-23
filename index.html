@@ -1,179 +1,386 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>WEbdEX Dashboard Viva</title>
-<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-<style>
-  body { font-family: Arial, sans-serif; background: #f5f5f5; color: #222; margin: 0; padding: 20px; }
-  h1 { text-align: center; color: #006400; }
-  .button { padding: 8px 16px; margin: 5px; background: #32cd32; color: #fff; border: none; cursor: pointer; border-radius: 5px; }
-  .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; background: #e0ffe0; }
-  table { width: 100%; border-collapse: collapse; margin-top:10px;}
-  th, td { border: 1px solid #aaa; padding: 6px; text-align: left; }
-  input { padding: 5px; width: 120px; margin-right: 5px; }
-</style>
-</head>
-<body>
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
 
-<h1>WEbdEX Dashboard Viva</h1>
+import "../interface/INetwork.sol";
+import "../interface/ISubAccount.sol";
+import "../interface/IFactory.sol";
+import "../interface/IStrategy.sol";
+import "../utils/LPToken.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-<div class="section">
-  <button class="button" id="connectWallet">Conectar Carteira</button>
-  <button class="button" id="disconnectWallet">Desconectar Carteira</button>
-  <p>Carteira: <span id="walletAddress">Não conectada</span></p>
-</div>
-
-<div class="section">
-  <h2>Saldos</h2>
-  <p>Saldo de Gás: <span id="gasBalance">0</span> 
-    <input type="text" id="addGasAmount" placeholder="MATIC">
-    <button class="button" onclick="addGas()">Adicionar</button>
-    <button class="button" onclick="removeGas()">Remover</button>
-  </p>
-  <p>Saldo de Pass/WebdEX: <span id="passBalance">0</span> 
-    <input type="text" id="addPassAmount" placeholder="Quantidade">
-    <button class="button" onclick="addPass()">Adicionar</button>
-    <button class="button" onclick="removePass()">Remover</button>
-  </p>
-  <p>Liquidez Total: <span id="totalLiquidity">0</span></p>
-  <input type="text" id="liqAmount" placeholder="Quantidade Liquidez">
-  <button class="button" onclick="addLiquidity()">Adicionar Liquidez</button>
-  <button class="button" onclick="removeLiquidity()">Remover Liquidez</button>
-</div>
-
-<div class="section">
-  <h2>Subcontas</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Nome</th>
-        <th>Liquidez</th>
-        <th>Status</th>
-        <th>Pausar/Retomar</th>
-      </tr>
-    </thead>
-    <tbody id="subAccountsTable"></tbody>
-  </table>
-  <p>
-    <input type="text" id="newSubId" placeholder="ID Subconta">
-    <input type="text" id="newSubName" placeholder="Nome Subconta">
-    <button class="button" onclick="createSubAccount()">Criar Subconta</button>
-  </p>
-</div>
-
-<div class="section">
-  <h2>PnL Diário</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Lucro/Prejuízo</th>
-      </tr>
-    </thead>
-    <tbody id="pnlTable"></tbody>
-  </table>
-</div>
-
-<script>
-const MANAGER_ADDRESS = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-const TOKEN_ADDRESS = "0xf49dA0F454d212B80F40693cdDd452D8Caa2fa6d"; // Exemplo WebdEX
-const COIN_ADDRESS = "0x72F95e2E7b81A6ede5207C7Bd14881c84555C411"; // Exemplo LPUSDT
-
-const MANAGER_ABI = [ /* ABI completa que você me enviou */ ];
-
-let provider, signer, managerContract;
-
-async function connectWallet() {
-    if (window.ethereum) {
-        try {
-            await window.ethereum.request({ method: 'eth_requestAccounts' });
-            provider = new ethers.providers.Web3Provider(window.ethereum);
-            signer = provider.getSigner();
-            const address = await signer.getAddress();
-            document.getElementById("walletAddress").innerText = address;
-            managerContract = new ethers.Contract(MANAGER_ADDRESS, MANAGER_ABI, signer);
-            loadBalances();
-            loadSubAccounts();
-            loadPnL();
-        } catch (err) {
-            console.error("Erro ao conectar carteira:", err);
-            alert("Falha ao conectar MetaMask!");
-        }
-    } else {
-        alert("Instale MetaMask para continuar.");
+contract WEbdEXManagerV4 {
+    IFactory public factory;
+    mapping(address => User) internal users;
+    struct User {
+        address manager;
+        uint256 gasBalance;
+        uint256 passBalance;
+        uint256 bonusBalance;
+        bool status;
     }
-}
 
-function disconnectWallet() {
-    document.getElementById("walletAddress").innerText = "Não conectada";
-    provider = signer = managerContract = null;
-    document.getElementById("gasBalance").innerText = "0";
-    document.getElementById("passBalance").innerText = "0";
-    document.getElementById("totalLiquidity").innerText = "0";
-    document.getElementById("subAccountsTable").innerHTML = "";
-    document.getElementById("pnlTable").innerHTML = "";
-}
+    struct UserDisplay {
+        address manager;
+        uint256 gasBalance;
+        uint256 passBalance;
+        uint256 bonusBalance;
+        ISubAccount.SubAccountsDisplay[] SubAccounts;
+    }
 
-async function loadBalances() {
-    if(!managerContract) return;
-    try{
-        const gas = await managerContract.gasBalance();
-        const pass = await managerContract.passBalance();
-        const userInfo = await managerContract.getInfoUser(await signer.getAddress());
-        let totalLiquidity = 0;
-        userInfo.Subcontas.forEach(sub => {
-            sub.estrategias.forEach(strat => strat.saldo.forEach(s => totalLiquidity += Number(s.valor)));
-        });
-        document.getElementById("gasBalance").innerText = ethers.utils.formatUnits(gas,18);
-        document.getElementById("passBalance").innerText = ethers.utils.formatUnits(pass,18);
-        document.getElementById("totalLiquidity").innerText = totalLiquidity;
-    } catch(err){ console.error(err); }
-}
+    mapping(address => Coin) internal listCoins;
+    struct Coin {
+        bool status;
+        LPToken lp;
+    }
 
-async function loadSubAccounts(){
-    if(!managerContract) return;
-    try{
-        const wallet = await signer.getAddress();
-        const userInfo = await managerContract.getInfoUser(wallet);
-        const tableBody = document.getElementById("subAccountsTable");
-        tableBody.innerHTML = "";
-        userInfo.Subcontas.forEach(sub => {
-            let subLiquidity = 0;
-            sub.estrategias.forEach(strat => strat.saldo.forEach(s => subLiquidity += Number(s.valor)));
-            let status = sub.estrategias.some(strat => strat.paused) ? 'Pausado' : 'Ativo';
-            let row = `<tr>
-                        <td>${sub.id}</td>
-                        <td>${sub.nome}</td>
-                        <td>${subLiquidity}</td>
-                        <td>${status}</td>
-                        <td>
-                          <button class="button" onclick="togglePause(['${sub.id}'], true)">Pausar</button>
-                          <button class="button" onclick="togglePause(['${sub.id}'], false)">Retomar</button>
-                        </td>
-                       </tr>`;
-            tableBody.innerHTML += row;
-        });
-    } catch(err){ console.error(err); }
-}
+    event Register(address indexed user, address indexed manager);
 
-async function addGas(){ try{ const value = ethers.utils.parseEther(document.getElementById("addGasAmount").value||"0"); const tx = await managerContract.gasAdd({value}); await tx.wait(); alert("Gás adicionado!"); loadBalances(); }catch(err){console.error(err);} }
-async function removeGas(){ try{ const value = ethers.utils.parseEther(document.getElementById("addGasAmount").value||"0"); const tx = await managerContract.gasRemove(value); await tx.wait(); alert("Gás removido!"); loadBalances(); }catch(err){console.error(err);} }
-async function addPass(){ try{ const value = ethers.utils.parseUnits(document.getElementById("addPassAmount").value||"0",18); const tx = await managerContract.passAdd(value); await tx.wait(); alert("Pass adicionado!"); loadBalances(); }catch(err){console.error(err);} }
-async function removePass(){ try{ const value = ethers.utils.parseUnits(document.getElementById("addPassAmount").value||"0",18); const tx = await managerContract.passRemove(value); await tx.wait(); alert("Pass removido!"); loadBalances(); }catch(err){console.error(err);} }
+    event BalanceGas(
+        address indexed user,
+        uint256 balance,
+        uint256 value,
+        bool increase,
+        bool is_operation
+    );
 
-async function createSubAccount(){ try{ const name = document.getElementById("newSubName").value; if(!name) return alert("Informe o Nome!"); const tx = await managerContract.criarSubconta([name]); await tx.wait(); alert("Subconta criada!"); loadSubAccounts(); }catch(err){console.error(err);} }
+    event BalancePass(
+        address indexed user,
+        uint256 balance,
+        uint256 value,
+        bool increase,
+        bool is_operation
+    );
 
-async function togglePause(accountIds, paused){ try{ await managerContract.togglePause(accountIds, TOKEN_ADDRESS, COIN_ADDRESS, paused); alert(paused?'Pausado':'Retomado'); loadSubAccounts(); }catch(err){console.error(err);} }
+    event BalanceBonus(
+        address indexed user,
+        uint256 balance,
+        uint256 value,
+        bool increase,
+        bool is_operation
+    );
 
-async function addLiquidity(){ try{ const amount = ethers.utils.parseUnits(document.getElementById("liqAmount").value||"0",18); const subIds = []; const tx = await managerContract.LiquidityAdd(subIds, TOKEN_ADDRESS, COIN_ADDRESS, amount); await tx.wait(); alert("Liquidez adicionada!"); loadBalances(); }catch(err){console.error(err);} }
-async function removeLiquidity(){ try{ const amount = ethers.utils.parseUnits(document.getElementById("liqAmount").value||"0",18); const subIds = []; const tx = await managerContract.LiquidityRemove(subIds, TOKEN_ADDRESS, COIN_ADDRESS, amount); await tx.wait(); alert("Liquidez removida!"); loadBalances(); }catch(err){console.error(err);} }
+    constructor(IFactory _factory) {
+        factory = _factory;
+    }
 
-async function loadPnL(){ if(!managerContract) return; try{ const wallet = await signer.getAddress(); const userInfo = await managerContract.getInfoUser(wallet); const pnlTable = document.getElementById("pnlTable"); pnlTable.innerHTML = ""; const today = new Date(); for(let i=6;i>=0;i--){ let date = new Date(today); date.setDate(today.getDate()-i); let value = 0; userInfo.Subcontas.forEach(sub=>sub.estrategias.forEach(strat=>strat.saldo.forEach(s=>value+=Number(s.valor)))); let row = `<tr><td>${date.toLocaleDateString()}</td><td style="color:${value>=0?'green':'red'}">${value.toFixed(2)}</td></tr>`; pnlTable.innerHTML += row; } }catch(err){console.error(err);} }
+    modifier onlyPayments() {
+        IFactory.Bot memory botInfo = factory.getBotInfo(address(this));
+        require(
+            botInfo.paymentsAddress == msg.sender,
+            "You must the WEbdEXPaymentsV4"
+        );
+        _;
+    }
 
-document.getElementById("connectWallet").addEventListener("click", connectWallet);
-document.getElementById("disconnectWallet").addEventListener("click", disconnectWallet);
-</script>
-</body>
-</html>
+    modifier onlyOwner() {
+        IFactory.Bot memory botInfo = factory.getBotInfo(address(this));
+        require(
+            botInfo.owner == msg.sender || address(factory) == msg.sender,
+            "Ownable: caller is not the owner nor the factory"
+        );
+        _;
+    }
+
+    modifier onlyRegistered() {
+        require(users[msg.sender].status, "User not registered");
+        _;
+    }
+
+    function register(address manager, string memory name) public {
+        if (manager != address(0)) {
+            require(users[manager].status, "Unregistered manager");
+        }
+
+        require(!users[msg.sender].status, "User already registered");
+        users[msg.sender] = User(manager, 0, 0, 0, true);
+        emit Register(msg.sender, manager);
+
+        _createSubAccount(msg.sender, name);
+    }
+
+    function subAccount() internal view returns (ISubAccount) {
+        address subAccountAddress = factory
+            .getBotInfo(address(this))
+            .subAccountAddress;
+        return ISubAccount(subAccountAddress);
+    }
+
+    function _createSubAccount(address user, string memory name) internal {
+        subAccount().create(user, name);
+    }
+
+    function createSubAccount(string[] memory names) public onlyRegistered {
+        for (uint256 i = 0; i < names.length; i++) {
+            _createSubAccount(msg.sender, names[i]);
+        }
+    }
+
+    function getInfoUser() public view returns (UserDisplay memory) {
+        ISubAccount SubAccount = subAccount();
+        ISubAccount.SubAccounts[] memory subAccounts = SubAccount
+            .getSubAccounts(address(this), msg.sender);
+
+        uint256 subAccountCount = subAccounts.length;
+        ISubAccount.SubAccountsDisplay[]
+            memory accounts = new ISubAccount.SubAccountsDisplay[](
+                subAccountCount
+            );
+
+        for (uint256 i = 0; i < subAccountCount; i++) {
+            address[] memory _strategies = SubAccount.getStrategies(
+                address(this),
+                msg.sender,
+                subAccounts[i].id
+            );
+
+            ISubAccount.StrategyDisplay[]
+                memory strategies = new ISubAccount.StrategyDisplay[](
+                    _strategies.length
+                );
+
+            for (uint256 j = 0; j < _strategies.length; j++) {
+                ISubAccount.BalanceStrategy[] memory balances = SubAccount
+                    .getBalances(
+                        address(this),
+                        msg.sender,
+                        subAccounts[i].id,
+                        _strategies[j]
+                    );
+                strategies[j] = ISubAccount.StrategyDisplay(
+                    _strategies[j],
+                    balances
+                );
+            }
+            accounts[i] = ISubAccount.SubAccountsDisplay(
+                subAccounts[i].id,
+                subAccounts[i].name,
+                strategies
+            );
+        }
+
+        return
+            UserDisplay(
+                users[msg.sender].manager,
+                users[msg.sender].gasBalance,
+                users[msg.sender].passBalance,
+                users[msg.sender].bonusBalance,
+                accounts
+            );
+    }
+
+    function getStrategies() public view returns (IStrategy.Strategy[] memory) {
+        return strategy().getStrategies(address(this));
+    }
+
+    function strategy() internal view returns (IStrategy) {
+        address strategyAddress = factory
+            .getBotInfo(address(this))
+            .strategyAddress;
+        return IStrategy(strategyAddress);
+    }
+
+    function _lpMint(
+        address to,
+        address coin,
+        uint256 amount
+    ) internal returns (address) {
+        listCoins[coin].lp.mint(to, amount);
+        return address(listCoins[coin].lp);
+    }
+
+    function LiquidityAdd(
+        string[] memory accountId,
+        address strategyToken,
+        address coin,
+        uint256 amount
+    ) public onlyRegistered {
+        require(
+            strategy().findStrategy(address(this), strategyToken).isActive,
+            "Strategy not found"
+        );
+        require(coin != address(0), "Invalid contract address");
+
+        ERC20 erc20 = ERC20(coin);
+        if (!listCoins[coin].status) {
+            listCoins[coin] = Coin(
+                true,
+                new LPToken(
+                    erc20.name(),
+                    erc20.symbol(),
+                    erc20.decimals(),
+                    coin
+                )
+            );
+        }
+
+        ISubAccount SubAccount = subAccount();
+        for (uint256 i = 0; i < accountId.length; i++) {
+            SubAccount.addLiquidity(
+                msg.sender,
+                accountId[i],
+                strategyToken,
+                amount / accountId.length,
+                coin
+            );
+        }
+
+        erc20.transferFrom(msg.sender, address(SubAccount), amount);
+        _lpMint(msg.sender, coin, amount);
+    }
+
+    function LiquidityRemove(
+        string[] memory accountId,
+        address strategyToken,
+        address coin,
+        uint256 amount
+    ) public onlyRegistered {
+        require(
+            strategy().findStrategy(address(this), strategyToken).isActive,
+            "Strategy not found"
+        );
+        require(coin != address(0), "Invalid contract address");
+
+        for (uint256 i = 0; i < accountId.length; i++) {
+            subAccount().removeLiquidity(
+                msg.sender,
+                accountId[i],
+                strategyToken,
+                amount,
+                coin
+            );
+        }
+
+        ERC20 erc20 = ERC20(coin);
+        listCoins[coin].lp.burnFrom(msg.sender, amount * accountId.length);
+        erc20.transfer(msg.sender, amount * accountId.length);
+    }
+
+    function togglePause(
+        string[] memory accountId,
+        address strategyToken,
+        address coin,
+        bool paused
+    ) public onlyRegistered {
+        require(
+            strategy().findStrategy(address(this), strategyToken).isActive,
+            "Strategy not found"
+        );
+        require(coin != address(0), "Invalid contract address");
+
+        for (uint256 i = 0; i < accountId.length; i++) {
+            subAccount().togglePause(
+                msg.sender,
+                accountId[i],
+                strategyToken,
+                coin,
+                paused
+            );
+        }
+    }
+
+    function gasRemove(uint256 amount) public onlyRegistered {
+        require(
+            users[msg.sender].gasBalance >= amount,
+            "Insufficient gas balance"
+        );
+
+        users[msg.sender].gasBalance -= amount;
+
+        payable(msg.sender).transfer(amount);
+
+        emit BalanceGas(
+            msg.sender,
+            users[msg.sender].gasBalance,
+            amount,
+            false,
+            false
+        );
+    }
+
+    function gasAdd() public payable onlyRegistered {
+        require(msg.value >= 0, "Insufficient value");
+        users[msg.sender].gasBalance += msg.value;
+
+        emit BalanceGas(
+            msg.sender,
+            users[msg.sender].gasBalance,
+            msg.value,
+            true,
+            false
+        );
+    }
+
+    function gasBalance() public view returns (uint256) {
+        return users[msg.sender].gasBalance;
+    }
+
+    function passAdd(uint256 amount) public onlyRegistered {
+        users[msg.sender].passBalance += amount;
+        address token = factory.getBotInfo(address(this)).tokenPassAddress;
+
+        ERC20 erc20 = ERC20(token);
+        erc20.transferFrom(msg.sender, address(this), amount);
+
+        emit BalancePass(
+            msg.sender,
+            users[msg.sender].passBalance,
+            amount,
+            true,
+            false
+        );
+    }
+
+    function passRemove(uint256 amount) public onlyRegistered {
+        require(
+            users[msg.sender].passBalance >= amount,
+            "Insufficient pass balance"
+        );
+        users[msg.sender].passBalance -= amount;
+        address token = factory.getBotInfo(address(this)).tokenPassAddress;
+
+        ERC20 erc20 = ERC20(token);
+        erc20.transfer(msg.sender, amount);
+
+        emit BalancePass(
+            msg.sender,
+            users[msg.sender].passBalance,
+            amount,
+            false,
+            false
+        );
+    }
+
+    function bonusAdd(uint256 amount, address user) public onlyOwner {
+        require(users[user].status, "User not registered");
+        users[user].bonusBalance += amount;
+        emit BalanceBonus(user, users[user].bonusBalance, amount, true, false);
+    }
+
+    function bonusRemove(uint256 amount, address user) public onlyOwner {
+        require(users[user].status, "User not registered");
+        require(
+            users[user].bonusBalance >= amount,
+            "Insufficient pass balance"
+        );
+        users[user].bonusBalance -= amount;
+        emit BalanceBonus(user, users[user].bonusBalance, amount, false, false);
+    }
+
+    function networkBalance(address coin) public view returns (uint256) {
+        address networkAddress = factory
+            .getBotInfo(address(this))
+            .networkAddress;
+        return
+            INetwork(networkAddress).getBalance(
+                address(this),
+                coin,
+                msg.sender
+            );
+    }
+
+    function networkWithdraw(
+        address coin,
+        uint256 amount
+    )
+::contentReference[oaicite:5]{index=5}
+ 
