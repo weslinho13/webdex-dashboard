@@ -70,11 +70,16 @@ th { background-color: #333; color: #fff; }
 </div>
 
 <script>
+// === Configurações ===
 const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-const managerABI = [ /* ABI resumida já funcional */ ];
+const managerABI = [ /* ABI resumida funcional que você já tinha */ ];
 
-let provider, signer, contract;
+// Variáveis
+let provider;
+let signer;
+let contract;
 
+// === Conectar carteira ===
 document.getElementById('connectWallet').onclick = async () => {
     if (window.ethereum) {
         provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -90,7 +95,9 @@ document.getElementById('connectWallet').onclick = async () => {
 };
 
 document.getElementById('disconnectWallet').onclick = () => {
-    provider = null; signer = null; contract = null;
+    provider = null;
+    signer = null;
+    contract = null;
     document.getElementById('userAddress').innerText = "Nenhum";
     document.getElementById('gasBalance').innerText = "0.0000";
     document.getElementById('passBalance').innerText = "0.0000";
@@ -98,21 +105,20 @@ document.getElementById('disconnectWallet').onclick = () => {
     document.getElementById('subAccountsTable').innerHTML = "";
 };
 
+// === Atualizar saldos ===
 async function updateBalances() {
     if (!contract) return;
     try {
         const gas = await contract.gasBalance();
         const pass = await contract.passBalance();
         const bonus = await contract.bonusBalance();
-
         document.getElementById('gasBalance').innerText = parseFloat(ethers.utils.formatEther(gas)).toFixed(4);
-
-        const passDecimals = 18; // ajustar conforme o token WebdEX
-        document.getElementById('passBalance').innerText = parseFloat(ethers.utils.formatUnits(pass, passDecimals)).toFixed(4);
-        document.getElementById('bonusBalance').innerText = parseFloat(ethers.utils.formatUnits(bonus, passDecimals)).toFixed(4);
+        document.getElementById('passBalance').innerText = parseFloat(ethers.utils.formatUnits(pass, 0)).toFixed(4);
+        document.getElementById('bonusBalance').innerText = parseFloat(ethers.utils.formatUnits(bonus, 0)).toFixed(4);
     } catch(e) { console.log(e); }
 }
 
+// === Funções de operação ===
 async function addGas() {
     const amount = document.getElementById('amountGas').value;
     if (!amount) return alert("Informe o valor");
@@ -132,31 +138,22 @@ async function removeGas() {
 async function addPass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
-
-    try {
-        // Endereço do token Pass obtido via factory ou definido direto
-        const tokenAddress = await contract.factory();
-        const erc20 = new ethers.Contract(tokenAddress, ["function approve(address spender,uint256 amount) public returns (bool)"], signer);
-
-        const amountWei = ethers.utils.parseUnits(amount, 18);
-        const approveTx = await erc20.approve(managerAddress, amountWei);
-        await approveTx.wait();
-
-        const tx = await contract.passAdd(amountWei);
-        await tx.wait();
-        updateBalances();
-    } catch(e) { console.log(e); alert("Erro ao adicionar WebdEX"); }
+    const parsedAmount = ethers.BigNumber.from(amount);
+    const tx = await contract.passAdd(parsedAmount);
+    await tx.wait();
+    updateBalances();
 }
 
 async function removePass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
-    const amountWei = ethers.utils.parseUnits(amount, 18);
-    const tx = await contract.passRemove(amountWei);
+    const parsedAmount = ethers.BigNumber.from(amount);
+    const tx = await contract.passRemove(parsedAmount);
     await tx.wait();
     updateBalances();
 }
 
+// === Subcontas ===
 async function createSubAccount() {
     const name = document.getElementById('subAccountName').value;
     if (!name) return alert("Informe o nome da subconta");
@@ -181,6 +178,7 @@ async function loadSubAccounts() {
     } catch(e) { console.log(e); }
 }
 
+// === Liquidez e toggle ===
 async function addLiquidity() {
     const token = document.getElementById('strategyToken').value;
     const coin = document.getElementById('coin').value;
