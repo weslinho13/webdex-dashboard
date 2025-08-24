@@ -41,6 +41,7 @@ th { background-color: #333; color: #fff; }
     <button onclick="removeGas()">Remover Gas</button>
     <br>
     <input type="number" id="amountPass" placeholder="Quantidade de WebdEX">
+    <button onclick="addPass()">Adicionar WebdEX</button>
     <button onclick="removePass()">Remover WebdEX</button>
 </div>
 
@@ -71,8 +72,25 @@ th { background-color: #333; color: #fff; }
 <script>
 // === Configurações ===
 const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-const managerABI = [ /* ABI resumida funcional como antes */ ];
 
+// ABI resumida funcional
+const managerABI = [
+    {"inputs":[{"internalType":"address","name":"_factory","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+    {"inputs":[],"name":"gasBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"passBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"bonusBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"getInfoUser","outputs":[{"internalType":"tuple","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"gasRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"gasAdd","outputs":[],"stateMutability":"payable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string","name":"name","type":"string"}],"name":"createSubAccount","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"bool","name":"paused","type":"bool"}],"name":"togglePause","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
+
+// Variáveis
 let provider;
 let signer;
 let contract;
@@ -109,9 +127,9 @@ async function updateBalances() {
     const gas = await contract.gasBalance();
     const pass = await contract.passBalance();
     const bonus = await contract.bonusBalance();
-    document.getElementById('gasBalance').innerText = parseFloat(ethers.utils.formatEther(gas)).toFixed(4);
-    document.getElementById('passBalance').innerText = pass.toString(); // número cheio, como antes
-    document.getElementById('bonusBalance').innerText = bonus.toString();
+    document.getElementById('gasBalance').innerText = ethers.utils.formatEther(gas);
+    document.getElementById('passBalance').innerText = pass;
+    document.getElementById('bonusBalance').innerText = bonus;
 }
 
 // === Funções de operação ===
@@ -127,6 +145,14 @@ async function removeGas() {
     const amount = document.getElementById('amountGas').value;
     if (!amount) return alert("Informe o valor");
     const tx = await contract.gasRemove(ethers.utils.parseEther(amount));
+    await tx.wait();
+    updateBalances();
+}
+
+async function addPass() {
+    const amount = document.getElementById('amountPass').value;
+    if (!amount) return alert("Informe o valor");
+    const tx = await contract.passAdd(amount);
     await tx.wait();
     updateBalances();
 }
@@ -150,6 +176,7 @@ async function createSubAccount() {
 
 async function loadSubAccounts() {
     if (!contract) return;
+    // Aqui pegamos apenas IDs e nomes (simplificado)
     try {
         const info = await contract.getInfoUser();
         const table = document.getElementById('subAccountsTable');
@@ -165,9 +192,37 @@ async function loadSubAccounts() {
 }
 
 // === Liquidez e toggle ===
-async function addLiquidity() { /* igual antes */ }
-async function removeLiquidity() { /* igual antes */ }
-async function togglePauseStrategy(paused) { /* igual antes */ }
+async function addLiquidity() {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const amount = document.getElementById('amountLiquidity').value;
+    if (!token || !coin || !amount) return alert("Informe todos os campos");
+    const subAccounts = []; // você pode adicionar IDs aqui se quiser distribuir
+    const tx = await contract.LiquidityAdd(subAccounts, token, coin, amount);
+    await tx.wait();
+    updateBalances();
+}
+
+async function removeLiquidity() {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const amount = document.getElementById('amountLiquidity').value;
+    if (!token || !coin || !amount) return alert("Informe todos os campos");
+    const subAccounts = [];
+    const tx = await contract.LiquidityRemove(subAccounts, token, coin, amount);
+    await tx.wait();
+    updateBalances();
+}
+
+async function togglePauseStrategy(paused) {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const subAccounts = [];
+    if (!token || !coin) return alert("Informe token e coin");
+    const tx = await contract.togglePause(subAccounts, token, coin, paused);
+    await tx.wait();
+    updateBalances();
+}
 
 </script>
 </body>
