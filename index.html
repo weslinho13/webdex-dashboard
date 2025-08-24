@@ -72,7 +72,23 @@ th { background-color: #333; color: #fff; }
 <script>
 // === Configurações ===
 const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
-const managerABI = [ /* ABI resumida funcional que você já tinha */ ];
+
+// ABI resumida funcional
+const managerABI = [
+    {"inputs":[{"internalType":"address","name":"_factory","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+    {"inputs":[],"name":"gasBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"passBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"bonusBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"getInfoUser","outputs":[{"internalType":"tuple","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"gasRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"gasAdd","outputs":[],"stateMutability":"payable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string","name":"name","type":"string"}],"name":"createSubAccount","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"bool","name":"paused","type":"bool"}],"name":"togglePause","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
 
 // Variáveis
 let provider;
@@ -113,8 +129,8 @@ async function updateBalances() {
         const pass = await contract.passBalance();
         const bonus = await contract.bonusBalance();
         document.getElementById('gasBalance').innerText = parseFloat(ethers.utils.formatEther(gas)).toFixed(4);
-        document.getElementById('passBalance').innerText = parseFloat(ethers.utils.formatUnits(pass, 0)).toFixed(4);
-        document.getElementById('bonusBalance').innerText = parseFloat(ethers.utils.formatUnits(bonus, 0)).toFixed(4);
+        document.getElementById('passBalance').innerText = parseFloat(ethers.utils.formatUnits(pass, 18)).toFixed(4);
+        document.getElementById('bonusBalance').innerText = parseFloat(ethers.utils.formatUnits(bonus, 18)).toFixed(4);
     } catch(e) { console.log(e); }
 }
 
@@ -138,7 +154,7 @@ async function removeGas() {
 async function addPass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
-    const parsedAmount = ethers.BigNumber.from(amount);
+    const parsedAmount = ethers.utils.parseUnits(amount, 18);
     const tx = await contract.passAdd(parsedAmount);
     await tx.wait();
     updateBalances();
@@ -147,7 +163,7 @@ async function addPass() {
 async function removePass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
-    const parsedAmount = ethers.BigNumber.from(amount);
+    const parsedAmount = ethers.utils.parseUnits(amount, 18);
     const tx = await contract.passRemove(parsedAmount);
     await tx.wait();
     updateBalances();
@@ -210,6 +226,7 @@ async function togglePauseStrategy(paused) {
     await tx.wait();
     updateBalances();
 }
+
 </script>
 </body>
 </html>
