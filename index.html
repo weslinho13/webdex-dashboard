@@ -72,6 +72,8 @@ th { background-color: #333; color: #fff; }
 <script>
 // === Configurações ===
 const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+const DECIMALS_PASS = 9;  // WebdEX tem 9 decimais
+const DECIMALS_GAS = 4;   // Gás exibe 4 decimais
 
 // ABI resumida funcional
 const managerABI = [
@@ -121,24 +123,15 @@ document.getElementById('disconnectWallet').onclick = () => {
     document.getElementById('subAccountsTable').innerHTML = "";
 };
 
-// === Atualizar saldos com decimais corretos ===
+// === Atualizar saldos ===
 async function updateBalances() {
     if (!contract) return;
-    try {
-        const gas = await contract.gasBalance();
-        const pass = await contract.passBalance();
-        const bonus = await contract.bonusBalance();
-
-        // Gás com 4 casas decimais
-        document.getElementById('gasBalance').innerText = Number(ethers.utils.formatEther(gas)).toFixed(4);
-
-        // Webdex com ponto e decimais
-        document.getElementById('passBalance').innerText = Number(ethers.utils.formatUnits(pass, 18)).toFixed(9);
-
-        document.getElementById('bonusBalance').innerText = Number(ethers.utils.formatUnits(bonus, 18)).toFixed(4);
-    } catch(e) {
-        console.log(e);
-    }
+    const gas = await contract.gasBalance();
+    const pass = await contract.passBalance();
+    const bonus = await contract.bonusBalance();
+    document.getElementById('gasBalance').innerText = Number(ethers.utils.formatUnits(gas, 18)).toFixed(DECIMALS_GAS);
+    document.getElementById('passBalance').innerText = Number(ethers.utils.formatUnits(pass, DECIMALS_PASS)).toFixed(DECIMALS_PASS);
+    document.getElementById('bonusBalance').innerText = bonus;
 }
 
 // === Funções de operação ===
@@ -161,7 +154,8 @@ async function removeGas() {
 async function addPass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
-    const tx = await contract.passAdd(ethers.utils.parseUnits(amount, 18));
+    const value = ethers.utils.parseUnits(amount, DECIMALS_PASS);
+    const tx = await contract.passAdd(value);
     await tx.wait();
     updateBalances();
 }
@@ -169,7 +163,8 @@ async function addPass() {
 async function removePass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
-    const tx = await contract.passRemove(ethers.utils.parseUnits(amount, 18));
+    const value = ethers.utils.parseUnits(amount, DECIMALS_PASS);
+    const tx = await contract.passRemove(value);
     await tx.wait();
     updateBalances();
 }
@@ -231,7 +226,6 @@ async function togglePauseStrategy(paused) {
     await tx.wait();
     updateBalances();
 }
-
 </script>
 </body>
 </html>
