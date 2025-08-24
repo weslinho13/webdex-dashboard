@@ -1,164 +1,231 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard WEbdEX</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #121212;
-      color: #ffffff;
-      text-align: center;
-      padding: 20px;
-    }
-    button {
-      margin: 5px;
-      padding: 10px 20px;
-      font-size: 16px;
-      background: #1e88e5;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #1565c0;
-    }
-    .card {
-      background: #1e1e1e;
-      padding: 15px;
-      margin: 15px auto;
-      border-radius: 10px;
-      width: 320px;
-      box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
-    }
-    input {
-      padding: 8px;
-      margin: 8px;
-      border-radius: 6px;
-      border: none;
-      width: 80%;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>WEbdEX Manager Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; }
+button { margin: 5px; padding: 10px 20px; border-radius: 8px; border: none; background: #1e88e5; color: #fff; cursor: pointer; }
+input { padding: 5px; margin: 5px; border-radius: 5px; border: 1px solid #ccc; }
+.container { margin-top: 20px; }
+h2 { color: #00e676; }
+table { margin: 10px auto; border-collapse: collapse; width: 80%; }
+th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+th { background-color: #333; color: #fff; }
+</style>
 </head>
 <body>
-  <h2>Dashboard WEbdEX</h2>
-  <button onclick="connectWallet()">Conectar Carteira</button>
-  <p id="walletAddress">Carteira: não conectada</p>
 
-  <div class="card">
-    <h3>Gás</h3>
-    <p>Saldo de Gás: <span id="gasBalance">0</span></p>
-    <input type="number" id="gasAmount" placeholder="Qtd em MATIC">
+<h1>WEbdEX Manager V4 Dashboard</h1>
+
+<div>
+    <button id="connectWallet">Conectar Carteira</button>
+    <button id="disconnectWallet">Desconectar Carteira</button>
+</div>
+
+<div class="container">
+    <h2>Endereço Conectado:</h2>
+    <p id="userAddress">Nenhum</p>
+
+    <h2>Saldos</h2>
+    <p>Gás: <span id="gasBalance">0</span> MATIC</p>
+    <p>WebdEX (Pass): <span id="passBalance">0</span></p>
+    <p>Bônus: <span id="bonusBalance">0</span></p>
+</div>
+
+<div class="container">
+    <h2>Operações</h2>
+    <input type="number" id="amountGas" placeholder="Quantidade de Gas">
+    <button onclick="addGas()">Adicionar Gas</button>
+    <button onclick="removeGas()">Remover Gas</button>
     <br>
-    <button onclick="addGas()">Adicionar Gás</button>
-    <button onclick="removeGas()">Remover Gás</button>
-  </div>
+    <input type="number" id="amountPass" placeholder="Quantidade de WebdEX">
+    <button onclick="addPass()">Adicionar WebdEX</button>
+    <button onclick="removePass()">Remover WebdEX</button>
+</div>
 
-  <div class="card">
-    <h3>WebDEX</h3>
-    <p>Saldo de WebDEX: <span id="webdexBalance">0</span></p>
-    <input type="number" id="webdexAmount" placeholder="Qtd WebDEX">
+<div class="container">
+    <h2>Subcontas</h2>
+    <input type="text" id="subAccountName" placeholder="Nome da Subconta">
+    <button onclick="createSubAccount()">Criar Subconta</button>
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Nome</th><th>Estratégias</th></tr>
+        </thead>
+        <tbody id="subAccountsTable"></tbody>
+    </table>
+</div>
+
+<div class="container">
+    <h2>Liquidez e Estratégias</h2>
+    <input type="text" id="strategyToken" placeholder="Endereço Token da Estratégia">
+    <input type="text" id="coin" placeholder="Endereço do Coin">
+    <input type="number" id="amountLiquidity" placeholder="Quantidade">
+    <button onclick="addLiquidity()">Adicionar Liquidez</button>
+    <button onclick="removeLiquidity()">Remover Liquidez</button>
     <br>
-    <button onclick="addWebdex()">Adicionar WebDEX</button>
-    <button onclick="removeWebdex()">Remover WebDEX</button>
-  </div>
+    <button onclick="togglePauseStrategy(true)">Pausar Estratégia</button>
+    <button onclick="togglePauseStrategy(false)">Despausar Estratégia</button>
+</div>
 
-  <script>
-    let provider, signer, userAddress;
-    let managerContract, webdexContract;
-    let webdexDecimals = 18; // valor padrão, será atualizado
+<script>
+// === Configurações ===
+const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+const DECIMALS_PASS = 9;  // WebdEX tem 9 decimais
+const DECIMALS_GAS = 4;   // Gás exibe 4 decimais
 
-    const managerABI = [
-      "function gasDeposit() view returns (uint256)",
-      "function passDeposit() view returns (uint256)",
-      "function gasAdd() payable",
-      "function gasRemove(uint256 amount)",
-      "function passAdd(uint256 amount)",
-      "function passRemove(uint256 amount)"
-    ];
+// ABI resumida funcional
+const managerABI = [
+    {"inputs":[{"internalType":"address","name":"_factory","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+    {"inputs":[],"name":"gasBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"passBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"bonusBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"getInfoUser","outputs":[{"internalType":"tuple","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"gasRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"gasAdd","outputs":[],"stateMutability":"payable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string","name":"name","type":"string"}],"name":"createSubAccount","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"bool","name":"paused","type":"bool"}],"name":"togglePause","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
 
-    const erc20ABI = [
-      "function decimals() view returns (uint8)",
-      "function balanceOf(address account) view returns (uint256)",
-      "function approve(address spender, uint256 amount) returns (bool)"
-    ];
+// Variáveis
+let provider;
+let signer;
+let contract;
 
-    const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0"; 
-    const webdexAddress  = "0xdf27F17Ba2BdbCB7a34d201B33BBCa570f8d7143"; 
-
-    async function connectWallet() {
-      if (window.ethereum) {
+// === Conectar carteira ===
+document.getElementById('connectWallet').onclick = async () => {
+    if (window.ethereum) {
         provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         signer = provider.getSigner();
-        userAddress = await signer.getAddress();
-        document.getElementById("walletAddress").innerText = "Carteira: " + userAddress;
-
-        managerContract = new ethers.Contract(managerAddress, managerABI, signer);
-        webdexContract  = new ethers.Contract(webdexAddress, erc20ABI, signer);
-
-        // buscar decimais do WebDEX ao conectar
-        webdexDecimals = await webdexContract.decimals();
-
+        document.getElementById('userAddress').innerText = await signer.getAddress();
+        contract = new ethers.Contract(managerAddress, managerABI, signer);
         updateBalances();
-      } else {
-        alert("MetaMask não detectado!");
-      }
+        loadSubAccounts();
+    } else {
+        alert("MetaMask não encontrada!");
     }
+};
 
-    async function updateBalances() {
-      if (!managerContract) return;
+document.getElementById('disconnectWallet').onclick = () => {
+    provider = null;
+    signer = null;
+    contract = null;
+    document.getElementById('userAddress').innerText = "Nenhum";
+    document.getElementById('gasBalance').innerText = "0";
+    document.getElementById('passBalance').innerText = "0";
+    document.getElementById('bonusBalance').innerText = "0";
+    document.getElementById('subAccountsTable').innerHTML = "";
+};
 
-      const gas = await managerContract.gasDeposit();
-      document.getElementById("gasBalance").innerText = ethers.utils.formatUnits(gas, 18);
+// === Atualizar saldos ===
+async function updateBalances() {
+    if (!contract) return;
+    const gas = await contract.gasBalance();
+    const pass = await contract.passBalance();
+    const bonus = await contract.bonusBalance();
+    document.getElementById('gasBalance').innerText = Number(ethers.utils.formatUnits(gas, 18)).toFixed(DECIMALS_GAS);
+    document.getElementById('passBalance').innerText = Number(ethers.utils.formatUnits(pass, DECIMALS_PASS)).toFixed(DECIMALS_PASS);
+    document.getElementById('bonusBalance').innerText = bonus;
+}
 
-      const pass = await managerContract.passDeposit();
-      document.getElementById("webdexBalance").innerText = ethers.utils.formatUnits(pass, webdexDecimals);
-    }
+// === Funções de operação ===
+async function addGas() {
+    const amount = document.getElementById('amountGas').value;
+    if (!amount) return alert("Informe o valor");
+    const tx = await contract.gasAdd({ value: ethers.utils.parseEther(amount) });
+    await tx.wait();
+    updateBalances();
+}
 
-    async function addGas() {
-      const amount = document.getElementById("gasAmount").value;
-      if (!amount || amount <= 0) return alert("Informe o valor");
-      const tx = await managerContract.gasAdd({ value: ethers.utils.parseEther(amount) });
-      await tx.wait();
-      updateBalances();
-    }
+async function removeGas() {
+    const amount = document.getElementById('amountGas').value;
+    if (!amount) return alert("Informe o valor");
+    const tx = await contract.gasRemove(ethers.utils.parseEther(amount));
+    await tx.wait();
+    updateBalances();
+}
 
-    async function removeGas() {
-      const amount = document.getElementById("gasAmount").value;
-      if (!amount || amount <= 0) return alert("Informe o valor");
-      const tx = await managerContract.gasRemove(ethers.utils.parseEther(amount));
-      await tx.wait();
-      updateBalances();
-    }
+async function addPass() {
+    const amount = document.getElementById('amountPass').value;
+    if (!amount) return alert("Informe o valor");
+    const value = ethers.utils.parseUnits(amount, DECIMALS_PASS);
+    const tx = await contract.passAdd(value);
+    await tx.wait();
+    updateBalances();
+}
 
-    async function addWebdex() {
-      const amount = document.getElementById("webdexAmount").value;
-      if (!amount || amount <= 0) return alert("Informe o valor");
+async function removePass() {
+    const amount = document.getElementById('amountPass').value;
+    if (!amount) return alert("Informe o valor");
+    const value = ethers.utils.parseUnits(amount, DECIMALS_PASS);
+    const tx = await contract.passRemove(value);
+    await tx.wait();
+    updateBalances();
+}
 
-      const amountParsed = ethers.utils.parseUnits(amount, webdexDecimals);
+// === Subcontas ===
+async function createSubAccount() {
+    const name = document.getElementById('subAccountName').value;
+    if (!name) return alert("Informe o nome da subconta");
+    const tx = await contract.createSubAccount(name);
+    await tx.wait();
+    loadSubAccounts();
+}
 
-      // aprovar antes
-      const approveTx = await webdexContract.approve(managerAddress, amountParsed);
-      await approveTx.wait();
+async function loadSubAccounts() {
+    if (!contract) return;
+    try {
+        const info = await contract.getInfoUser();
+        const table = document.getElementById('subAccountsTable');
+        table.innerHTML = "";
+        if (info.Subcontas) {
+            info.Subcontas.forEach(sub => {
+                let strategies = sub.estratégias ? sub.estratégias.map(s=>s.strategyToken).join(", ") : "";
+                let row = `<tr><td>${sub.id}</td><td>${sub.nome}</td><td>${strategies}</td></tr>`;
+                table.innerHTML += row;
+            });
+        }
+    } catch(e) { console.log(e); }
+}
 
-      const tx = await managerContract.passAdd(amountParsed);
-      await tx.wait();
+// === Liquidez e toggle ===
+async function addLiquidity() {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const amount = document.getElementById('amountLiquidity').value;
+    if (!token || !coin || !amount) return alert("Informe todos os campos");
+    const subAccounts = [];
+    const tx = await contract.LiquidityAdd(subAccounts, token, coin, amount);
+    await tx.wait();
+    updateBalances();
+}
 
-      updateBalances();
-    }
+async function removeLiquidity() {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const amount = document.getElementById('amountLiquidity').value;
+    if (!token || !coin || !amount) return alert("Informe todos os campos");
+    const subAccounts = [];
+    const tx = await contract.LiquidityRemove(subAccounts, token, coin, amount);
+    await tx.wait();
+    updateBalances();
+}
 
-    async function removeWebdex() {
-      const amount = document.getElementById("webdexAmount").value;
-      if (!amount || amount <= 0) return alert("Informe o valor");
-
-      const amountParsed = ethers.utils.parseUnits(amount, webdexDecimals);
-      const tx = await managerContract.passRemove(amountParsed);
-      await tx.wait();
-      updateBalances();
-    }
-  </script>
+async function togglePauseStrategy(paused) {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const subAccounts = [];
+    if (!token || !coin) return alert("Informe token e coin");
+    const tx = await contract.togglePause(subAccounts, token, coin, paused);
+    await tx.wait();
+    updateBalances();
+}
+</script>
 </body>
 </html>
