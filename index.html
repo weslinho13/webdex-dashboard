@@ -158,4 +158,68 @@ async function addPass() {
 async function removePass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
-    const tx = await contract.pass
+    const tx = await contract.passRemove(amount);
+    await tx.wait();
+    updateBalances();
+}
+
+// === Subcontas ===
+async function createSubAccount() {
+    const name = document.getElementById('subAccountName').value;
+    if (!name) return alert("Informe o nome da subconta");
+    const tx = await contract.createSubAccount(name);
+    await tx.wait();
+    loadSubAccounts();
+}
+
+async function loadSubAccounts() {
+    if (!contract) return;
+    try {
+        const info = await contract.getInfoUser();
+        const table = document.getElementById('subAccountsTable');
+        table.innerHTML = "";
+        if (info.Subcontas) {
+            info.Subcontas.forEach(sub => {
+                let strategies = sub.estratégias ? sub.estratégias.map(s=>s.strategyToken).join(", ") : "";
+                let row = `<tr><td>${sub.id}</td><td>${sub.nome}</td><td>${strategies}</td></tr>`;
+                table.innerHTML += row;
+            });
+        }
+    } catch(e) { console.log(e); }
+}
+
+// === Liquidez e toggle ===
+async function addLiquidity() {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const amount = document.getElementById('amountLiquidity').value;
+    if (!token || !coin || !amount) return alert("Informe todos os campos");
+    const subAccounts = [];
+    const tx = await contract.LiquidityAdd(subAccounts, token, coin, amount);
+    await tx.wait();
+    updateBalances();
+}
+
+async function removeLiquidity() {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const amount = document.getElementById('amountLiquidity').value;
+    if (!token || !coin || !amount) return alert("Informe todos os campos");
+    const subAccounts = [];
+    const tx = await contract.LiquidityRemove(subAccounts, token, coin, amount);
+    await tx.wait();
+    updateBalances();
+}
+
+async function togglePauseStrategy(paused) {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const subAccounts = [];
+    if (!token || !coin) return alert("Informe token e coin");
+    const tx = await contract.togglePause(subAccounts, token, coin, paused);
+    await tx.wait();
+    updateBalances();
+}
+</script>
+</body>
+</html>
