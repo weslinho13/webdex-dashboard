@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>WEbdEX Dashboard</title>
+<title>WEbdEX Manager Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 <style>
 body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; }
@@ -10,11 +10,15 @@ button { margin: 5px; padding: 10px 20px; border-radius: 8px; border: none; back
 input { padding: 5px; margin: 5px; border-radius: 5px; border: 1px solid #ccc; }
 .container { margin-top: 20px; }
 h2 { color: #00e676; }
+table { margin: 10px auto; border-collapse: collapse; width: 80%; }
+th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+th { background-color: #333; color: #fff; }
 </style>
 </head>
 <body>
 
-<h1>WEbdEX Manager V4</h1>
+<h1>WEbdEX Manager V4 Dashboard</h1>
+
 <div>
     <button id="connectWallet">Conectar Carteira</button>
     <button id="disconnectWallet">Desconectar Carteira</button>
@@ -37,27 +41,54 @@ h2 { color: #00e676; }
     <button onclick="removeGas()">Remover Gas</button>
     <br>
     <input type="number" id="amountPass" placeholder="Quantidade de WebdEX">
+    <button onclick="approvePass()">Aprovar WebDEX</button>
     <button onclick="addPass()">Adicionar WebdEX</button>
     <button onclick="removePass()">Remover WebdEX</button>
+</div>
+
+<div class="container">
+    <h2>Subcontas</h2>
+    <input type="text" id="subAccountName" placeholder="Nome da Subconta">
+    <button onclick="createSubAccount()">Criar Subconta</button>
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Nome</th><th>Estratégias</th></tr>
+        </thead>
+        <tbody id="subAccountsTable"></tbody>
+    </table>
+</div>
+
+<div class="container">
+    <h2>Liquidez e Estratégias</h2>
+    <input type="text" id="strategyToken" placeholder="Endereço Token da Estratégia">
+    <input type="text" id="coin" placeholder="Endereço do Coin">
+    <input type="number" id="amountLiquidity" placeholder="Quantidade">
+    <button onclick="addLiquidity()">Adicionar Liquidez</button>
+    <button onclick="removeLiquidity()">Remover Liquidez</button>
+    <br>
+    <button onclick="togglePauseStrategy(true)">Pausar Estratégia</button>
+    <button onclick="togglePauseStrategy(false)">Despausar Estratégia</button>
 </div>
 
 <script>
 // === Configurações ===
 const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
 
-// ABI corrigida (resumida e funcional)
+// ABI resumida funcional
 const managerABI = [
     {"inputs":[{"internalType":"address","name":"_factory","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
-    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"balance","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"},{"indexed":false,"internalType":"bool","name":"increase","type":"bool"},{"indexed":false,"internalType":"bool","name":"is_operation","type":"bool"}],"name":"BalanceGas","type":"event"},
-    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"balance","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"},{"indexed":false,"internalType":"bool","name":"increase","type":"bool"},{"indexed":false,"internalType":"bool","name":"is_operation","type":"bool"}],"name":"BalancePass","type":"event"},
-    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"balance","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"},{"indexed":false,"internalType":"bool","name":"increase","type":"bool"},{"indexed":false,"internalType":"bool","name":"is_operation","type":"bool"}],"name":"BalanceBonus","type":"event"},
     {"inputs":[],"name":"gasBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
     {"inputs":[],"name":"passBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
     {"inputs":[],"name":"bonusBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"gasAdd","outputs":[],"stateMutability":"payable","type":"function"},
+    {"inputs":[],"name":"getInfoUser","outputs":[{"internalType":"tuple","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
     {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"gasRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"gasAdd","outputs":[],"stateMutability":"payable","type":"function"},
     {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
-    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passRemove","outputs":[],"stateMutability":"nonpayable","type":"function"}
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string","name":"name","type":"string"}],"name":"createSubAccount","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"bool","name":"paused","type":"bool"}],"name":"togglePause","outputs":[],"stateMutability":"nonpayable","type":"function"}
 ];
 
 // Variáveis
@@ -74,6 +105,7 @@ document.getElementById('connectWallet').onclick = async () => {
         document.getElementById('userAddress').innerText = await signer.getAddress();
         contract = new ethers.Contract(managerAddress, managerABI, signer);
         updateBalances();
+        loadSubAccounts();
     } else {
         alert("MetaMask não encontrada!");
     }
@@ -87,6 +119,7 @@ document.getElementById('disconnectWallet').onclick = () => {
     document.getElementById('gasBalance').innerText = "0";
     document.getElementById('passBalance').innerText = "0";
     document.getElementById('bonusBalance').innerText = "0";
+    document.getElementById('subAccountsTable').innerHTML = "";
 };
 
 // === Atualizar saldos ===
@@ -95,7 +128,7 @@ async function updateBalances() {
     const gas = await contract.gasBalance();
     const pass = await contract.passBalance();
     const bonus = await contract.bonusBalance();
-    document.getElementById('gasBalance').innerText = ethers.utils.formatEther(gas);
+    document.getElementById('gasBalance').innerText = parseFloat(ethers.utils.formatEther(gas)).toFixed(4);
     document.getElementById('passBalance').innerText = pass;
     document.getElementById('bonusBalance').innerText = bonus;
 }
@@ -117,10 +150,40 @@ async function removeGas() {
     updateBalances();
 }
 
+// === Aprovar e adicionar WebDEX ===
+async function approvePass() {
+    const amount = document.getElementById('amountPass').value;
+    if (!amount) return alert("Informe o valor");
+
+    const info = await contract.factory().then(f => f.getBotInfo(managerAddress));
+    const tokenAddress = info.tokenPassAddress;
+
+    const tokenContract = new ethers.Contract(tokenAddress, [
+        {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"type":"function"},
+        {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"}
+    ], signer);
+
+    const decimals = await tokenContract.decimals();
+    const tx = await tokenContract.approve(managerAddress, ethers.utils.parseUnits(amount, decimals));
+    await tx.wait();
+    alert("WebDEX aprovado com sucesso!");
+}
+
 async function addPass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
-    const tx = await contract.passAdd(amount);
+
+    const info = await contract.factory().then(f => f.getBotInfo(managerAddress));
+    const tokenAddress = info.tokenPassAddress;
+
+    const tokenContract = new ethers.Contract(tokenAddress, [
+        {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"}
+    ], provider);
+
+    const decimals = await tokenContract.decimals();
+    const amountWithDecimals = ethers.utils.parseUnits(amount, decimals);
+
+    const tx = await contract.passAdd(amountWithDecimals);
     await tx.wait();
     updateBalances();
 }
@@ -129,6 +192,64 @@ async function removePass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
     const tx = await contract.passRemove(amount);
+    await tx.wait();
+    updateBalances();
+}
+
+// === Subcontas ===
+async function createSubAccount() {
+    const name = document.getElementById('subAccountName').value;
+    if (!name) return alert("Informe o nome da subconta");
+    const tx = await contract.createSubAccount(name);
+    await tx.wait();
+    loadSubAccounts();
+}
+
+async function loadSubAccounts() {
+    if (!contract) return;
+    try {
+        const info = await contract.getInfoUser();
+        const table = document.getElementById('subAccountsTable');
+        table.innerHTML = "";
+        if (info.Subcontas) {
+            info.Subcontas.forEach(sub => {
+                let strategies = sub.estratégias ? sub.estratégias.map(s=>s.strategyToken).join(", ") : "";
+                let row = `<tr><td>${sub.id}</td><td>${sub.nome}</td><td>${strategies}</td></tr>`;
+                table.innerHTML += row;
+            });
+        }
+    } catch(e) { console.log(e); }
+}
+
+// === Liquidez e toggle ===
+async function addLiquidity() {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const amount = document.getElementById('amountLiquidity').value;
+    if (!token || !coin || !amount) return alert("Informe todos os campos");
+    const subAccounts = [];
+    const tx = await contract.LiquidityAdd(subAccounts, token, coin, amount);
+    await tx.wait();
+    updateBalances();
+}
+
+async function removeLiquidity() {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const amount = document.getElementById('amountLiquidity').value;
+    if (!token || !coin || !amount) return alert("Informe todos os campos");
+    const subAccounts = [];
+    const tx = await contract.LiquidityRemove(subAccounts, token, coin, amount);
+    await tx.wait();
+    updateBalances();
+}
+
+async function togglePauseStrategy(paused) {
+    const token = document.getElementById('strategyToken').value;
+    const coin = document.getElementById('coin').value;
+    const subAccounts = [];
+    if (!token || !coin) return alert("Informe token e coin");
+    const tx = await contract.togglePause(subAccounts, token, coin, paused);
     await tx.wait();
     updateBalances();
 }
