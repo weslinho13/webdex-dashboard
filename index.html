@@ -72,6 +72,7 @@ th { background-color: #333; color: #fff; }
 <script>
 // === Configurações ===
 const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
+const webdexAddress  = "0xdf27F17Ba2BdbCB7a34d201B33BBCa570f8d7143"; // Token WebdEX
 const DECIMALS_PASS = 9;  // WebdEX tem 9 decimais
 const DECIMALS_GAS = 4;   // Gás exibe 4 decimais
 
@@ -81,7 +82,6 @@ const managerABI = [
     {"inputs":[],"name":"gasBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
     {"inputs":[],"name":"passBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
     {"inputs":[],"name":"bonusBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"getInfoUser","outputs":[{"internalType":"tuple","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
     {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"gasRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
     {"inputs":[],"name":"gasAdd","outputs":[],"stateMutability":"payable","type":"function"},
     {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"passAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
@@ -90,6 +90,11 @@ const managerABI = [
     {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityAdd","outputs":[],"stateMutability":"nonpayable","type":"function"},
     {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"LiquidityRemove","outputs":[],"stateMutability":"nonpayable","type":"function"},
     {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"bool","name":"paused","type":"bool"}],"name":"togglePause","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
+
+// ABI mínima ERC20
+const erc20ABI = [
+    "function approve(address spender, uint256 amount) public returns (bool)"
 ];
 
 // Variáveis
@@ -106,7 +111,6 @@ document.getElementById('connectWallet').onclick = async () => {
         document.getElementById('userAddress').innerText = await signer.getAddress();
         contract = new ethers.Contract(managerAddress, managerABI, signer);
         updateBalances();
-        loadSubAccounts();
     } else {
         alert("MetaMask não encontrada!");
     }
@@ -155,8 +159,18 @@ async function addPass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
     const value = ethers.utils.parseUnits(amount, DECIMALS_PASS);
-    const tx = await contract.passAdd(value);
+
+    // 1. Instanciar token WebdEX
+    const token = new ethers.Contract(webdexAddress, erc20ABI, signer);
+
+    // 2. Dar approve
+    let tx = await token.approve(managerAddress, value);
     await tx.wait();
+
+    // 3. Chamar passAdd
+    tx = await contract.passAdd(value);
+    await tx.wait();
+
     updateBalances();
 }
 
@@ -165,64 +179,6 @@ async function removePass() {
     if (!amount) return alert("Informe o valor");
     const value = ethers.utils.parseUnits(amount, DECIMALS_PASS);
     const tx = await contract.passRemove(value);
-    await tx.wait();
-    updateBalances();
-}
-
-// === Subcontas ===
-async function createSubAccount() {
-    const name = document.getElementById('subAccountName').value;
-    if (!name) return alert("Informe o nome da subconta");
-    const tx = await contract.createSubAccount(name);
-    await tx.wait();
-    loadSubAccounts();
-}
-
-async function loadSubAccounts() {
-    if (!contract) return;
-    try {
-        const info = await contract.getInfoUser();
-        const table = document.getElementById('subAccountsTable');
-        table.innerHTML = "";
-        if (info.Subcontas) {
-            info.Subcontas.forEach(sub => {
-                let strategies = sub.estratégias ? sub.estratégias.map(s=>s.strategyToken).join(", ") : "";
-                let row = `<tr><td>${sub.id}</td><td>${sub.nome}</td><td>${strategies}</td></tr>`;
-                table.innerHTML += row;
-            });
-        }
-    } catch(e) { console.log(e); }
-}
-
-// === Liquidez e toggle ===
-async function addLiquidity() {
-    const token = document.getElementById('strategyToken').value;
-    const coin = document.getElementById('coin').value;
-    const amount = document.getElementById('amountLiquidity').value;
-    if (!token || !coin || !amount) return alert("Informe todos os campos");
-    const subAccounts = [];
-    const tx = await contract.LiquidityAdd(subAccounts, token, coin, amount);
-    await tx.wait();
-    updateBalances();
-}
-
-async function removeLiquidity() {
-    const token = document.getElementById('strategyToken').value;
-    const coin = document.getElementById('coin').value;
-    const amount = document.getElementById('amountLiquidity').value;
-    if (!token || !coin || !amount) return alert("Informe todos os campos");
-    const subAccounts = [];
-    const tx = await contract.LiquidityRemove(subAccounts, token, coin, amount);
-    await tx.wait();
-    updateBalances();
-}
-
-async function togglePauseStrategy(paused) {
-    const token = document.getElementById('strategyToken').value;
-    const coin = document.getElementById('coin').value;
-    const subAccounts = [];
-    if (!token || !coin) return alert("Informe token e coin");
-    const tx = await contract.togglePause(subAccounts, token, coin, paused);
     await tx.wait();
     updateBalances();
 }
