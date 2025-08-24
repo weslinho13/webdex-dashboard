@@ -41,7 +41,6 @@ th { background-color: #333; color: #fff; }
     <button onclick="removeGas()">Remover Gas</button>
     <br>
     <input type="number" id="amountPass" placeholder="Quantidade de WebdEX">
-    <button onclick="addPass()">Adicionar WebdEX</button>
     <button onclick="removePass()">Remover WebdEX</button>
 </div>
 
@@ -74,7 +73,6 @@ th { background-color: #333; color: #fff; }
 const managerAddress = "0x9b4314878f58C3Ca53EC0087AcC8c9A30DF773E0";
 const managerABI = [ /* ABI resumida funcional como antes */ ];
 
-// Variáveis
 let provider;
 let signer;
 let contract;
@@ -112,7 +110,7 @@ async function updateBalances() {
     const pass = await contract.passBalance();
     const bonus = await contract.bonusBalance();
     document.getElementById('gasBalance').innerText = parseFloat(ethers.utils.formatEther(gas)).toFixed(4);
-    document.getElementById('passBalance').innerText = pass.toString();
+    document.getElementById('passBalance').innerText = pass.toString(); // número cheio, como antes
     document.getElementById('bonusBalance').innerText = bonus.toString();
 }
 
@@ -129,19 +127,6 @@ async function removeGas() {
     const amount = document.getElementById('amountGas').value;
     if (!amount) return alert("Informe o valor");
     const tx = await contract.gasRemove(ethers.utils.parseEther(amount));
-    await tx.wait();
-    updateBalances();
-}
-
-async function addPass() {
-    const amount = document.getElementById('amountPass').value;
-    if (!amount) return alert("Informe o valor");
-    // Aqui estava dando problema, precisa chamar aprovar antes se necessário
-    const tokenAddress = await contract.factory().then(f => f.tokenPassAddress);
-    const tokenContract = new ethers.Contract(tokenAddress, [ "function approve(address spender,uint256 amount) public returns (bool)" ], signer);
-    const approveTx = await tokenContract.approve(managerAddress, amount);
-    await approveTx.wait();
-    const tx = await contract.passAdd(amount);
     await tx.wait();
     updateBalances();
 }
