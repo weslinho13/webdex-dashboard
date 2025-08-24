@@ -68,9 +68,9 @@
   <script>
     let provider, signer, userAddress;
     let managerContract, webdexContract;
-    let webdexDecimals = 18; // será atualizado pelo contrato
+    let webdexDecimals = 18; // valor padrão, será atualizado
 
-    const managerABI = [ // ABI resumida só com funções que usamos
+    const managerABI = [
       "function gasDeposit() view returns (uint256)",
       "function passDeposit() view returns (uint256)",
       "function gasAdd() payable",
@@ -79,7 +79,6 @@
       "function passRemove(uint256 amount)"
     ];
 
-    // ABI mínima ERC20 (WebDEX)
     const erc20ABI = [
       "function decimals() view returns (uint8)",
       "function balanceOf(address account) view returns (uint256)",
@@ -100,7 +99,7 @@
         managerContract = new ethers.Contract(managerAddress, managerABI, signer);
         webdexContract  = new ethers.Contract(webdexAddress, erc20ABI, signer);
 
-        // buscar decimais do WebDEX
+        // buscar decimais do WebDEX ao conectar
         webdexDecimals = await webdexContract.decimals();
 
         updateBalances();
@@ -112,17 +111,11 @@
     async function updateBalances() {
       if (!managerContract) return;
 
-      // saldo de gás
       const gas = await managerContract.gasDeposit();
-      document.getElementById("gasBalance").innerText = parseFloat(
-        ethers.utils.formatUnits(gas, 18)
-      ).toFixed(4);
+      document.getElementById("gasBalance").innerText = ethers.utils.formatUnits(gas, 18);
 
-      // saldo de WebDEX
       const pass = await managerContract.passDeposit();
-      document.getElementById("webdexBalance").innerText = parseFloat(
-        ethers.utils.formatUnits(pass, webdexDecimals)
-      ).toFixed(4);
+      document.getElementById("webdexBalance").innerText = ethers.utils.formatUnits(pass, webdexDecimals);
     }
 
     async function addGas() {
@@ -147,12 +140,13 @@
 
       const amountParsed = ethers.utils.parseUnits(amount, webdexDecimals);
 
-      // aprovar antes de adicionar
+      // aprovar antes
       const approveTx = await webdexContract.approve(managerAddress, amountParsed);
       await approveTx.wait();
 
       const tx = await managerContract.passAdd(amountParsed);
       await tx.wait();
+
       updateBalances();
     }
 
