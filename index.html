@@ -89,7 +89,10 @@ const managerABI = [
     {"inputs":[{"internalType":"string[]","name":"accountId","type":"string[]"},{"internalType":"address","name":"strategyToken","type":"address"},{"internalType":"address","name":"coin","type":"address"},{"internalType":"bool","name":"paused","type":"bool"}],"name":"togglePause","outputs":[],"stateMutability":"nonpayable","type":"function"}
 ];
 
-let provider, signer, contract;
+// Variáveis
+let provider;
+let signer;
+let contract;
 
 // === Conectar carteira ===
 document.getElementById('connectWallet').onclick = async () => {
@@ -120,17 +123,15 @@ document.getElementById('disconnectWallet').onclick = () => {
 // === Atualizar saldos ===
 async function updateBalances() {
     if (!contract) return;
-    try {
-        const gas = await contract.gasBalance();
-        const pass = await contract.passBalance();
-        const bonus = await contract.bonusBalance();
-        document.getElementById('gasBalance').innerText = parseFloat(ethers.utils.formatEther(gas)).toFixed(4);
-        document.getElementById('passBalance').innerText = pass;
-        document.getElementById('bonusBalance').innerText = bonus;
-    } catch(e) { console.log(e); }
+    const gas = await contract.gasBalance();
+    const pass = await contract.passBalance();
+    const bonus = await contract.bonusBalance();
+    document.getElementById('gasBalance').innerText = parseFloat(ethers.utils.formatEther(gas)).toFixed(4);
+    document.getElementById('passBalance').innerText = pass;
+    document.getElementById('bonusBalance').innerText = bonus;
 }
 
-// === Operações ===
+// === Funções de operação ===
 async function addGas() {
     const amount = document.getElementById('amountGas').value;
     if (!amount) return alert("Informe o valor");
@@ -147,12 +148,33 @@ async function removeGas() {
     updateBalances();
 }
 
+// === Adicionar WebdEX com approve automático ===
 async function addPass() {
     const amount = document.getElementById('amountPass').value;
     if (!amount) return alert("Informe o valor");
-    const tx = await contract.passAdd(amount);
-    await tx.wait();
-    updateBalances();
+
+    try {
+        const passTokenAddress = "ENDERECO_DO_TOKEN_PASS"; // substituir pelo endereço real
+        const passABI = [
+            "function allowance(address owner, address spender) view returns (uint256)",
+            "function approve(address spender, uint256 amount) returns (bool)"
+        ];
+        const passContract = new ethers.Contract(passTokenAddress, passABI, signer);
+        const owner = await signer.getAddress();
+        const currentAllowance = await passContract.allowance(owner, managerAddress);
+
+        if (currentAllowance.lt(amount)) {
+            const txApprove = await passContract.approve(managerAddress, amount);
+            await txApprove.wait();
+        }
+
+        const tx = await contract.passAdd(amount);
+        await tx.wait();
+        updateBalances();
+    } catch(e) {
+        console.log(e);
+        alert("Erro ao adicionar WebdEX: " + e.message);
+    }
 }
 
 async function removePass() {
@@ -220,6 +242,7 @@ async function togglePauseStrategy(paused) {
     await tx.wait();
     updateBalances();
 }
+
 </script>
 </body>
 </html>
